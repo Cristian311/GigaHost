@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GigaHost
 
-## Getting Started
+Game-server hosting platform (Minecraft, Rust, Valheim, CS2, Palworld, …). Players pick a game, drag sliders for RAM / vCPU / NVMe storage, choose a region and billing period, see the price live and deploy.
 
-First, run the development server:
+**Phase 1 (this repo):** full frontend + backend with a real database, authentication, orders and a dashboard, but with **simulated provisioning** and **simulated payments**. Real servers (Pterodactyl) and Stripe plug in later without changing the rest of the app.
+
+## Stack
+
+| Layer      | Choice                                                                 |
+| ---------- | ---------------------------------------------------------------------- |
+| Framework  | Next.js 16 (App Router, Turbopack, Server Actions, Route Handlers)     |
+| Language   | TypeScript                                                             |
+| UI         | Tailwind CSS v4, shadcn/ui (Base UI), lucide-react, motion, recharts   |
+| i18n       | next-intl (`/en`, `/ro`)                                                |
+| Auth       | Auth.js v5 (email + password; Google/Discord ready via env vars)       |
+| ORM / DB   | Prisma 7 · SQLite for local dev · PostgreSQL for production            |
+| Validation | zod                                                                    |
+| Tests      | vitest (pricing engine)                                                |
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # also runs `prisma generate`
+cp .env.example .env        # defaults work out of the box (SQLite)
+npx prisma migrate dev      # creates dev.db and applies migrations
+npm run db:seed             # games, regions, pricing, admin user
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Admin login after seeding: `admin@gigahost.local` / `admin1234`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Useful scripts:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script              | What it does                                  |
+| ------------------- | --------------------------------------------- |
+| `npm run dev`       | dev server                                    |
+| `npm run build`     | production build                              |
+| `npm run test`      | vitest unit tests                             |
+| `npm run typecheck` | `tsc --noEmit`                                |
+| `npm run lint`      | eslint                                        |
+| `npm run db:studio` | Prisma Studio (browse the DB)                 |
+| `npm run db:reset`  | drop, migrate and seed again                  |
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/[locale]/
+    (marketing)/   landing, /games, /games/[slug], /configure
+    (auth)/        /login, /register
+    (app)/         /dashboard, /dashboard/servers/[id], /dashboard/billing, /account, /admin/*
+  app/api/         REST endpoints (pricing quote, games, servers, power, usage, console, orders, auth)
+  components/      UI (landing, configurator, dashboard, admin, auth, layout)
+  lib/pricing/     pure pricing engine + tests (integer cents)
+  lib/validation/  zod schemas shared by actions and API routes
+  server/
+    actions/       Server Actions (forms & mutations)
+    services/      business logic (pricing, orders, servers, users, admin)
+    providers/     ServerProvider abstraction: MockProvider (now), PterodactylProvider (later)
+    auth-guard.ts  requireUser / requireAdmin / getApiUser
+  proxy.ts         locale routing + auth redirects
+prisma/            schema, migrations, seed
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Provisioning abstraction.** Everything that talks to a game server goes through the `ServerProvider` interface (`src/server/providers/types.ts`). `MockProvider` simulates installs, starts and stops with lazy time-based transitions (INSTALLING → STOPPED after 10 s, STARTING → RUNNING after 5 s, …) and fakes usage graphs and console output. `SERVER_PROVIDER=pterodactyl` selects the stub that will call the Pterodactyl Panel API.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Pricing.** `calculatePrice()` is a pure function working in integer cents. The client uses it for the live preview; the server recomputes it on checkout, so a tampered total is never trusted.
 
-## Deploy on Vercel
+**Money flow (simulated).** Checkout → Order (PAID) → Invoice (PAID) → Server provisioned → Subscription (ACTIVE). Replacing the "mark as paid" step with a Stripe webhook is the only change needed for real payments.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Switching to PostgreSQL
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. `docker compose up -d` (or any Postgres instance)
+2. In `prisma/schema.prisma` change `provider = "sqlite"` to `provider = "postgresql"`
+3. In `src/lib/db.ts` swap `PrismaBetterSqlite3` for `PrismaPg` from `@prisma/adapter-pg` (already installed)
+4. Set `DATABASE_URL="postgresql://gigahost:gigahost@localhost:5432/gigahost"`
+5. Delete `prisma/migrations` and run `npx prisma migrate dev --name init`, then `npm run db:seed`
+
+## Roadmap
+
+- [ ] Stripe Checkout + webhooks (replace mock checkout in `order-service.ts`)
+- [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
+- [ ] Resource upgrades/downgrades with pro-rating
+- [ ] Backups, file manager, scheduled tasks
+- [ ] Email verification & password reset
+- [ ] Rate limiting and audit logs
+
+> Roblox is listed in the catalog as **unavailable**: Roblox does not allow third-party hosting of experiences.

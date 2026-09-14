@@ -1,0 +1,40 @@
+import { z } from "zod";
+
+export const pricingConfigSchema = z.object({
+  currency: z.string().length(3).toUpperCase(),
+  basePriceCents: z.number().int().min(0).max(1_000_000),
+  pricePerGbRamCents: z.number().int().min(0).max(1_000_000),
+  pricePerVcpuCents: z.number().int().min(0).max(1_000_000),
+  pricePerGbStorageCents: z.number().int().min(0).max(1_000_000),
+  quarterlyDiscount: z.number().min(0).max(0.9),
+  yearlyDiscount: z.number().min(0).max(0.9),
+});
+
+export const upsertGameSchema = z.object({
+  id: z.string().optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(2)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/, "slug_format"),
+  name: z.string().trim().min(2).max(80),
+  tagline: z.string().trim().min(2).max(120),
+  description: z.string().trim().min(2).max(2000),
+  image: z.string().trim().min(1).max(500),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "color_format"),
+  minRamGb: z.number().int().min(1).max(64),
+  recommendedRamGb: z.number().int().min(1).max(64),
+  minCpu: z.number().int().min(1).max(16),
+  minStorageGb: z.number().int().min(10).max(500),
+  /** Comma separated list in the form, stored as JSON. */
+  versions: z.string().max(1000),
+  available: z.boolean(),
+  unavailableReason: z.string().max(300).optional().nullable(),
+  sortOrder: z.number().int().min(0).max(1000),
+});
+
+export const setUserRoleSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(["USER", "ADMIN"]),
+});

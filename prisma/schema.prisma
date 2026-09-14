@@ -1,0 +1,290 @@
+// GigaHost data model.
+//
+// Local development runs on SQLite (zero setup). The schema deliberately avoids
+// Postgres-only column types (arrays, native enums with @db attributes) so that
+// switching to PostgreSQL for production is a one-line change:
+//   datasource db { provider = "postgresql" }
+// followed by a fresh `prisma migrate dev`.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ServerStatus {
+  PENDING
+  INSTALLING
+  STOPPED
+  STARTING
+  RUNNING
+  STOPPING
+  SUSPENDED
+  ERROR
+  DELETED
+}
+
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
+// Users & Auth.js
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role      @default(USER)
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  servers       Server[]
+  orders        Order[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Catalog: games, regions, pricing
+// ---------------------------------------------------------------------------
+
+model Game {
+  id                String  @id @default(cuid())
+  slug              String  @unique
+  name              String
+  /// Short tagline shown on cards.
+  tagline           String
+  /// Longer description shown on the game detail page.
+  description       String
+  /// Path under /public (e.g. /games/minecraft.svg) or an absolute URL.
+  image             String
+  /// Accent colour used for gradients on cards (hex).
+  accentColor       String  @default("#7c3aed")
+  minRamGb          Int
+  recommendedRamGb  Int
+  minCpu            Int     @default(1)
+  minStorageGb      Int     @default(10)
+  /// JSON-encoded string[] of supported versions.
+  versions          String  @default("[]")
+  available         Boolean @default(true)
+  unavailableReason String?
+  sortOrder         Int     @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  servers Server[]
+}
+
+model Region {
+  id              String  @id @default(cuid())
+  code            String  @unique
+  name            String
+  country         String
+  /// Emoji flag, e.g. 🇷🇴
+  flag            String
+  /// Multiplies the monthly price (1.0 = base).
+  priceMultiplier Float   @default(1.0)
+  active          Boolean @default(true)
+  sortOrder       Int     @default(0)
+
+  servers Server[]
+}
+
+/// Prices are stored as integer cents to avoid floating point money.
+model PricingConfig {
+  id                    String   @id @default(cuid())
+  name                  String   @default("default")
+  active                Boolean  @default(true)
+  currency              String   @default("EUR")
+  basePriceCents        Int
+  pricePerGbRamCents    Int
+  pricePerVcpuCents     Int
+  pricePerGbStorageCents Int
+  /// 0.05 = 5 % off when paying quarterly
+  quarterlyDiscount     Float    @default(0.05)
+  /// 0.15 = 15 % off when paying yearly
+  yearlyDiscount        Float    @default(0.15)
+  updatedAt             DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Servers
+// ---------------------------------------------------------------------------
+
+model Server {
+  id              String       @id @default(cuid())
+  name            String
+  ownerId         String
+  gameId          String
+  regionId        String
+  ramGb           Int
+  vcpu            Int
+  storageGb       Int
+  gameVersion     String?
+  status          ServerStatus @default(PENDING)
+  /// Used by the mock provider to compute lazy state transitions.
+  statusChangedAt DateTime     @default(now())
+  /// Identifier on the provisioning backend (mock id / Pterodactyl uuid).
+  providerId      String?      @unique
+  ip              String?
+  port            Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  game         Game          @relation(fields: [gameId], references: [id])
+  region       Region        @relation(fields: [regionId], references: [id])
+  subscription Subscription?
+  orders       Order[]
+
+  @@index([ownerId])
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+model Order {
+  id             String        @id @default(cuid())
+  userId         String
+  serverId       String?
+  status         OrderStatus   @default(PENDING)
+  billingPeriod  BillingPeriod
+  /// JSON snapshot of the configuration at order time.
+  configSnapshot String
+  subtotalCents  Int
+  discountCents  Int
+  totalCents     Int
+  currency       String        @default("EUR")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server       Server?       @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  invoices     Invoice[]
+  subscription Subscription?
+
+  @@index([userId])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  serverId           String             @unique
+  orderId            String             @unique
+  status             SubscriptionStatus @default(ACTIVE)
+  billingPeriod      BillingPeriod
+  amountCents        Int
+  currency           String             @default("EUR")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  /// Human readable number, e.g. GH-2026-000123
+  number      String        @unique
+  userId      String
+  orderId     String
+  status      InvoiceStatus @default(OPEN)
+  amountCents Int
+  currency    String        @default("EUR")
+  issuedAt    DateTime      @default(now())
+  dueAt       DateTime
+  paidAt      DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

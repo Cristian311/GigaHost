@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gigahost-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gigahost
+      POSTGRES_PASSWORD: gigahost
+      POSTGRES_DB: gigahost
+    ports:
+      - "5432:5432"
+    volumes:
+      - gigahost_pgdata:/var/lib/postgresql/data
+
+volumes:
+  gigahost_pgdata:

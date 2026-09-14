@@ -1,0 +1,449 @@
+{
+  "common": {
+    "appName": "GigaHost",
+    "loading": "Loading…",
+    "save": "Save",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "back": "Back",
+    "close": "Close",
+    "perMonth": "/mo",
+    "month": "month",
+    "months": "months",
+    "gb": "GB",
+    "vcpu": "vCPU",
+    "nvme": "NVMe",
+    "from": "from",
+    "error": "Something went wrong. Please try again.",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "yes": "Yes",
+    "no": "No",
+    "optional": "optional",
+    "language": "Language",
+    "english": "English",
+    "romanian": "Română"
+  },
+  "nav": {
+    "games": "Games",
+    "pricing": "Pricing",
+    "features": "Features",
+    "faq": "FAQ",
+    "configure": "Configure server",
+    "login": "Log in",
+    "register": "Get started",
+    "dashboard": "Dashboard",
+    "servers": "Servers",
+    "billing": "Billing",
+    "account": "Account",
+    "admin": "Admin",
+    "logout": "Log out",
+    "openMenu": "Open menu"
+  },
+  "footer": {
+    "tagline": "High-performance game servers you configure in seconds.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "about": "About",
+    "status": "Status",
+    "contact": "Contact",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "rights": "All rights reserved."
+  },
+  "landing": {
+    "hero": {
+      "badge": "Now with NVMe storage in 4 regions",
+      "title1": "Game servers that",
+      "title2": "just work.",
+      "subtitle": "Pick your game, drag the sliders for RAM, CPU and storage, and your server is online in under a minute. No contracts, cancel anytime.",
+      "ctaPrimary": "Build your server",
+      "ctaSecondary": "Browse games",
+      "stats": {
+        "uptime": "Uptime SLA",
+        "deploy": "Average deploy",
+        "regions": "Regions",
+        "support": "Support"
+      }
+    },
+    "features": {
+      "title": "Everything a serious server needs",
+      "subtitle": "Built for communities, streamers and friends who want zero lag and zero hassle.",
+      "items": {
+        "nvme": {
+          "title": "NVMe storage",
+          "desc": "Chunk loading and world saves fly on enterprise NVMe drives."
+        },
+        "ddos": {
+          "title": "DDoS protection",
+          "desc": "Always-on mitigation keeps your server reachable during attacks."
+        },
+        "panel": {
+          "title": "Modern control panel",
+          "desc": "Start, stop, watch the console and live resource usage from one dashboard."
+        },
+        "backups": {
+          "title": "Automatic backups",
+          "desc": "Daily snapshots with one-click restore so a bad update never costs you a world."
+        },
+        "scale": {
+          "title": "Scale anytime",
+          "desc": "Need more RAM for the weekend? Bump the slider, pay the difference."
+        },
+        "support": {
+          "title": "Human support",
+          "desc": "Real gamers on the other side of the chat, around the clock."
+        }
+      }
+    },
+    "games": {
+      "title": "Pick your game",
+      "subtitle": "One-click installs for the most played titles. More added every month.",
+      "viewAll": "See all games"
+    },
+    "pricing": {
+      "title": "Transparent, per-resource pricing",
+      "subtitle": "No tiers, no upsells. You pay for exactly the RAM, CPU and storage you choose.",
+      "cta": "Open full configurator"
+    },
+    "testimonials": {
+      "title": "Loved by communities",
+      "items": [
+        {
+          "quote": "Moved our 60-player SMP over in an evening. Zero lag since, and the console in the dashboard is a life saver.",
+          "name": "Andrei P.",
+          "role": "Minecraft community admin"
+        },
+        {
+          "quote": "Wipe day used to be stressful. Now I schedule it and go stream. The Rust servers just hold up.",
+          "name": "Kira",
+          "role": "Twitch streamer"
+        },
+        {
+          "quote": "Being able to add 4 GB of RAM for a weekend event and drop it on Monday is exactly what we needed.",
+          "name": "Mihai D.",
+          "role": "Valheim clan leader"
+        }
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "q": "How fast is my server online?",
+          "a": "Most servers are installed and ready within 60 seconds after checkout. Large games like ARK can take a few minutes to download."
+        },
+        {
+          "q": "Can I change resources later?",
+          "a": "Yes. Increase or decrease RAM, CPU and storage at any time; we pro-rate the difference on your next invoice."
+        },
+        {
+          "q": "Do you host Roblox servers?",
+          "a": "No. Roblox runs all experiences on its own infrastructure and does not allow third-party hosting, so we cannot offer it."
+        },
+        {
+          "q": "What happens if I cancel?",
+          "a": "Your server keeps running until the end of the paid period. You can download a full backup before it is removed."
+        },
+        {
+          "q": "Which payment methods are accepted?",
+          "a": "Card payments through Stripe are coming soon. During the preview, checkout is simulated and no money is charged."
+        }
+      ]
+    }
+  },
+  "games": {
+    "title": "Supported games",
+    "subtitle": "Choose a game to see requirements, versions and a starting price.",
+    "unavailable": "Not available",
+    "from": "from",
+    "minRam": "Min. RAM",
+    "recommendedRam": "Recommended",
+    "minCpu": "Min. vCPU",
+    "minStorage": "Min. storage",
+    "versions": "Versions",
+    "configure": "Configure {game}",
+    "notAvailableTitle": "This game cannot be hosted",
+    "notAvailableDesc": "{reason}",
+    "backToGames": "All games",
+    "notFound": "Game not found"
+  },
+  "configure": {
+    "title": "Build your server",
+    "subtitle": "Every slider updates the price live. You only pay for what you pick.",
+    "steps": {
+      "game": "Game",
+      "resources": "Resources",
+      "region": "Location",
+      "billing": "Billing"
+    },
+    "game": "Game",
+    "version": "Version",
+    "latest": "Latest",
+    "ram": "Memory (RAM)",
+    "cpu": "Processor (vCPU)",
+    "storage": "NVMe storage",
+    "region": "Region",
+    "billing": "Billing period",
+    "periods": {
+      "MONTHLY": "Monthly",
+      "QUARTERLY": "Quarterly",
+      "YEARLY": "Yearly"
+    },
+    "saveBadge": "Save {percent}",
+    "minFor": "Minimum for {game}: {value}",
+    "recommendedFor": "Recommended: {value}",
+    "summary": "Summary",
+    "base": "Base",
+    "regionAdjustment": "Region",
+    "monthlyPrice": "Monthly price",
+    "subtotal": "Subtotal ({months} months)",
+    "discount": "Discount ({percent})",
+    "total": "Total today",
+    "effective": "Effective per month",
+    "serverName": "Server name",
+    "serverNamePlaceholder": "e.g. Friday Night SMP",
+    "deploy": "Deploy server",
+    "deploying": "Deploying…",
+    "deployLogin": "Log in to deploy",
+    "previewNotice": "Preview mode: checkout is simulated, no payment is taken.",
+    "success": "Server created! Redirecting to your dashboard…",
+    "errors": {
+      "game_not_found": "That game does not exist.",
+      "game_unavailable": "This game is not available for hosting.",
+      "region_not_found": "Please choose a region.",
+      "below_minimum": "The configuration is below the game's minimum requirements.",
+      "validation": "Please check the form and try again.",
+      "internal_error": "Something went wrong. Please try again."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Log in to manage your servers.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "submitting": "Logging in…",
+      "noAccount": "No account yet?",
+      "register": "Create one"
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Free to sign up. Deploy your first server in minutes.",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "submitting": "Creating…",
+      "hasAccount": "Already have an account?",
+      "login": "Log in"
+    },
+    "oauth": {
+      "or": "or continue with",
+      "google": "Continue with Google",
+      "discord": "Continue with Discord"
+    },
+    "errors": {
+      "invalid_credentials": "Invalid email or password.",
+      "email_taken": "An account with this email already exists.",
+      "validation": "Please check the highlighted fields.",
+      "passwords_mismatch": "Passwords do not match.",
+      "password_short": "Password must be at least 8 characters."
+    }
+  },
+  "dashboard": {
+    "title": "Your servers",
+    "subtitle": "Manage, monitor and scale your game servers.",
+    "newServer": "New server",
+    "empty": {
+      "title": "No servers yet",
+      "desc": "Configure your first server and it will show up here.",
+      "cta": "Build a server"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "INSTALLING": "Installing",
+      "STOPPED": "Stopped",
+      "STARTING": "Starting",
+      "RUNNING": "Online",
+      "STOPPING": "Stopping",
+      "SUSPENDED": "Suspended",
+      "ERROR": "Error",
+      "DELETED": "Deleted"
+    },
+    "server": {
+      "manage": "Manage",
+      "overview": "Overview",
+      "address": "Server address",
+      "notAssigned": "Not assigned yet",
+      "game": "Game",
+      "region": "Region",
+      "resources": "Resources",
+      "uptime": "Uptime",
+      "players": "Players",
+      "cpu": "CPU",
+      "ram": "Memory",
+      "disk": "Disk",
+      "console": "Console",
+      "consoleEmpty": "Nothing in the console yet.",
+      "usage": "Live usage",
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "delete": "Delete server",
+      "deleteTitle": "Delete this server?",
+      "deleteDesc": "This stops the server, cancels its subscription and removes all files. This cannot be undone.",
+      "rename": "Rename",
+      "renameTitle": "Rename server",
+      "actions": "Power",
+      "subscription": "Subscription",
+      "renews": "Renews on {date}",
+      "endsOn": "Ends on {date}",
+      "period": "Billing period",
+      "version": "Version",
+      "created": "Created",
+      "installingHint": "Your server is being installed. This usually takes a few seconds.",
+      "errors": {
+        "invalid_transition": "That action is not available in the current state.",
+        "server_not_found": "Server not found.",
+        "internal_error": "Something went wrong. Please try again."
+      }
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Subscriptions, invoices and order history.",
+    "subscriptions": "Subscriptions",
+    "invoices": "Invoices",
+    "orders": "Orders",
+    "empty": "Nothing here yet.",
+    "invoiceNumber": "Invoice",
+    "amount": "Amount",
+    "status": "Status",
+    "date": "Date",
+    "server": "Server",
+    "period": "Period",
+    "nextRenewal": "Next renewal",
+    "cancelAtPeriodEnd": "Cancel at period end",
+    "resume": "Resume renewal",
+    "cancelScheduled": "Cancellation scheduled",
+    "previewNotice": "Preview mode: invoices are generated, but no real payment is processed yet.",
+    "statuses": {
+      "ACTIVE": "Active",
+      "PAST_DUE": "Past due",
+      "CANCELLED": "Cancelled",
+      "EXPIRED": "Expired",
+      "PAID": "Paid",
+      "OPEN": "Open",
+      "DRAFT": "Draft",
+      "VOID": "Void",
+      "PENDING": "Pending",
+      "FAILED": "Failed"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "Your profile and security settings.",
+    "profile": "Profile",
+    "name": "Name",
+    "email": "Email",
+    "language": "Preferred language",
+    "save": "Save changes",
+    "saved": "Profile updated.",
+    "security": "Security",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changePassword": "Change password",
+    "passwordChanged": "Password updated.",
+    "noPassword": "You signed up with a social account, so there is no password to change.",
+    "memberSince": "Member since {date}",
+    "role": "Role",
+    "errors": {
+      "invalid_credentials": "Current password is incorrect.",
+      "validation": "Please check the highlighted fields.",
+      "internal_error": "Something went wrong. Please try again."
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "Catalog, pricing and users.",
+    "nav": {
+      "overview": "Overview",
+      "games": "Games",
+      "pricing": "Pricing",
+      "users": "Users"
+    },
+    "stats": {
+      "users": "Users",
+      "servers": "Active servers",
+      "running": "Running now",
+      "orders": "Paid orders",
+      "revenue": "Revenue"
+    },
+    "games": {
+      "title": "Games",
+      "add": "Add game",
+      "edit": "Edit game",
+      "name": "Name",
+      "slug": "Slug",
+      "tagline": "Tagline",
+      "description": "Description",
+      "image": "Image path",
+      "accentColor": "Accent colour",
+      "minRam": "Min RAM (GB)",
+      "recommendedRam": "Recommended RAM (GB)",
+      "minCpu": "Min vCPU",
+      "minStorage": "Min storage (GB)",
+      "versions": "Versions (comma separated)",
+      "available": "Available for rent",
+      "unavailableReason": "Reason (if unavailable)",
+      "sortOrder": "Sort order",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this game? If servers use it, it will be hidden instead.",
+      "saved": "Game saved."
+    },
+    "pricing": {
+      "title": "Pricing",
+      "desc": "All prices are stored in cents. Changes apply to new orders immediately.",
+      "currency": "Currency",
+      "base": "Base price (cents / month)",
+      "ram": "Price per GB RAM (cents)",
+      "cpu": "Price per vCPU (cents)",
+      "storage": "Price per GB storage (cents)",
+      "quarterly": "Quarterly discount (0–0.9)",
+      "yearly": "Yearly discount (0–0.9)",
+      "preview": "Preview: 8 GB / 4 vCPU / 50 GB, base region",
+      "saved": "Pricing updated."
+    },
+    "users": {
+      "title": "Users",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "servers": "Servers",
+      "orders": "Orders",
+      "joined": "Joined",
+      "makeAdmin": "Make admin",
+      "makeUser": "Make user",
+      "cannotDemoteSelf": "You cannot remove your own admin role."
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Page not found",
+      "desc": "The page you are looking for does not exist or was moved.",
+      "cta": "Go home"
+    },
+    "generic": {
+      "title": "Something went wrong",
+      "desc": "An unexpected error occurred. Please try again.",
+      "retry": "Try again"
+    }
+  }
+}

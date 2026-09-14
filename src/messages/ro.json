@@ -1,0 +1,449 @@
+{
+  "common": {
+    "appName": "GigaHost",
+    "loading": "Se încarcă…",
+    "save": "Salvează",
+    "saved": "Salvat",
+    "cancel": "Anulează",
+    "delete": "Șterge",
+    "confirm": "Confirmă",
+    "back": "Înapoi",
+    "close": "Închide",
+    "perMonth": "/lună",
+    "month": "lună",
+    "months": "luni",
+    "gb": "GB",
+    "vcpu": "vCPU",
+    "nvme": "NVMe",
+    "from": "de la",
+    "error": "A apărut o eroare. Te rugăm să încerci din nou.",
+    "copy": "Copiază",
+    "copied": "Copiat!",
+    "yes": "Da",
+    "no": "Nu",
+    "optional": "opțional",
+    "language": "Limbă",
+    "english": "English",
+    "romanian": "Română"
+  },
+  "nav": {
+    "games": "Jocuri",
+    "pricing": "Prețuri",
+    "features": "Funcții",
+    "faq": "Întrebări",
+    "configure": "Configurează server",
+    "login": "Autentificare",
+    "register": "Începe acum",
+    "dashboard": "Panou",
+    "servers": "Servere",
+    "billing": "Facturare",
+    "account": "Cont",
+    "admin": "Admin",
+    "logout": "Deconectare",
+    "openMenu": "Deschide meniul"
+  },
+  "footer": {
+    "tagline": "Servere de jocuri performante, configurate în câteva secunde.",
+    "product": "Produs",
+    "company": "Companie",
+    "legal": "Legal",
+    "about": "Despre",
+    "status": "Status",
+    "contact": "Contact",
+    "terms": "Termeni",
+    "privacy": "Confidențialitate",
+    "rights": "Toate drepturile rezervate."
+  },
+  "landing": {
+    "hero": {
+      "badge": "Acum cu stocare NVMe în 4 regiuni",
+      "title1": "Servere de jocuri care",
+      "title2": "pur și simplu merg.",
+      "subtitle": "Alege jocul, trage sliderele pentru RAM, CPU și stocare, iar serverul tău este online în mai puțin de un minut. Fără contracte, anulezi oricând.",
+      "ctaPrimary": "Construiește-ți serverul",
+      "ctaSecondary": "Vezi jocurile",
+      "stats": {
+        "uptime": "Uptime garantat",
+        "deploy": "Instalare medie",
+        "regions": "Regiuni",
+        "support": "Suport"
+      }
+    },
+    "features": {
+      "title": "Tot ce are nevoie un server serios",
+      "subtitle": "Construit pentru comunități, streameri și prieteni care vor zero lag și zero bătăi de cap.",
+      "items": {
+        "nvme": {
+          "title": "Stocare NVMe",
+          "desc": "Încărcarea chunk-urilor și salvările lumii zboară pe unități NVMe enterprise."
+        },
+        "ddos": {
+          "title": "Protecție DDoS",
+          "desc": "Mitigare permanentă care ține serverul accesibil chiar și în timpul atacurilor."
+        },
+        "panel": {
+          "title": "Panou de control modern",
+          "desc": "Pornești, oprești, urmărești consola și consumul de resurse în timp real, dintr-un singur loc."
+        },
+        "backups": {
+          "title": "Backup-uri automate",
+          "desc": "Snapshot-uri zilnice cu restaurare într-un click, ca un update prost să nu te coste o lume."
+        },
+        "scale": {
+          "title": "Scalezi oricând",
+          "desc": "Ai nevoie de mai mult RAM pentru weekend? Mută sliderul, plătești diferența."
+        },
+        "support": {
+          "title": "Suport uman",
+          "desc": "Gameri adevărați de cealaltă parte a chatului, non-stop."
+        }
+      }
+    },
+    "games": {
+      "title": "Alege-ți jocul",
+      "subtitle": "Instalare într-un click pentru cele mai jucate titluri. Adăugăm altele lunar.",
+      "viewAll": "Vezi toate jocurile"
+    },
+    "pricing": {
+      "title": "Prețuri transparente, pe resursă",
+      "subtitle": "Fără pachete, fără upsell. Plătești exact RAM-ul, CPU-ul și stocarea pe care le alegi.",
+      "cta": "Deschide configuratorul complet"
+    },
+    "testimonials": {
+      "title": "Îndrăgit de comunități",
+      "items": [
+        {
+          "quote": "Am mutat SMP-ul nostru de 60 de jucători într-o seară. Zero lag de atunci, iar consola din panou e salvatoare.",
+          "name": "Andrei P.",
+          "role": "Admin comunitate Minecraft"
+        },
+        {
+          "quote": "Ziua de wipe era stresantă. Acum o programez și mă duc să dau stream. Serverele de Rust țin.",
+          "name": "Kira",
+          "role": "Streamer Twitch"
+        },
+        {
+          "quote": "Să pot adăuga 4 GB de RAM pentru un eveniment de weekend și să-i scot luni e exact ce ne trebuia.",
+          "name": "Mihai D.",
+          "role": "Lider clan Valheim"
+        }
+      ]
+    },
+    "faq": {
+      "title": "Întrebări frecvente",
+      "items": [
+        {
+          "q": "Cât de repede e online serverul meu?",
+          "a": "Majoritatea serverelor sunt instalate și gata în 60 de secunde după comandă. Jocurile mari, precum ARK, pot dura câteva minute la descărcare."
+        },
+        {
+          "q": "Pot schimba resursele mai târziu?",
+          "a": "Da. Poți crește sau scădea RAM, CPU și stocare oricând; diferența se calculează proporțional pe următoarea factură."
+        },
+        {
+          "q": "Găzduiți servere de Roblox?",
+          "a": "Nu. Roblox rulează toate experiențele pe propria infrastructură și nu permite găzduire terță, așa că nu putem oferi acest serviciu."
+        },
+        {
+          "q": "Ce se întâmplă dacă anulez?",
+          "a": "Serverul rămâne activ până la finalul perioadei plătite. Poți descărca un backup complet înainte să fie șters."
+        },
+        {
+          "q": "Ce metode de plată acceptați?",
+          "a": "Plata cu cardul prin Stripe vine în curând. În perioada de preview, checkout-ul este simulat și nu se percep bani."
+        }
+      ]
+    }
+  },
+  "games": {
+    "title": "Jocuri suportate",
+    "subtitle": "Alege un joc pentru cerințe, versiuni și preț de pornire.",
+    "unavailable": "Indisponibil",
+    "from": "de la",
+    "minRam": "RAM minim",
+    "recommendedRam": "Recomandat",
+    "minCpu": "vCPU minim",
+    "minStorage": "Stocare minimă",
+    "versions": "Versiuni",
+    "configure": "Configurează {game}",
+    "notAvailableTitle": "Acest joc nu poate fi găzduit",
+    "notAvailableDesc": "{reason}",
+    "backToGames": "Toate jocurile",
+    "notFound": "Jocul nu a fost găsit"
+  },
+  "configure": {
+    "title": "Construiește-ți serverul",
+    "subtitle": "Fiecare slider actualizează prețul în timp real. Plătești doar ce alegi.",
+    "steps": {
+      "game": "Joc",
+      "resources": "Resurse",
+      "region": "Locație",
+      "billing": "Facturare"
+    },
+    "game": "Joc",
+    "version": "Versiune",
+    "latest": "Ultima",
+    "ram": "Memorie (RAM)",
+    "cpu": "Procesor (vCPU)",
+    "storage": "Stocare NVMe",
+    "region": "Regiune",
+    "billing": "Perioadă de facturare",
+    "periods": {
+      "MONTHLY": "Lunar",
+      "QUARTERLY": "Trimestrial",
+      "YEARLY": "Anual"
+    },
+    "saveBadge": "Economisești {percent}",
+    "minFor": "Minim pentru {game}: {value}",
+    "recommendedFor": "Recomandat: {value}",
+    "summary": "Sumar",
+    "base": "Bază",
+    "regionAdjustment": "Regiune",
+    "monthlyPrice": "Preț lunar",
+    "subtotal": "Subtotal ({months} luni)",
+    "discount": "Reducere ({percent})",
+    "total": "Total de plată azi",
+    "effective": "Efectiv pe lună",
+    "serverName": "Numele serverului",
+    "serverNamePlaceholder": "ex. SMP de vineri seara",
+    "deploy": "Lansează serverul",
+    "deploying": "Se lansează…",
+    "deployLogin": "Autentifică-te pentru a lansa",
+    "previewNotice": "Mod preview: plata este simulată, nu se percep bani.",
+    "success": "Server creat! Te redirecționăm către panou…",
+    "errors": {
+      "game_not_found": "Jocul nu există.",
+      "game_unavailable": "Acest joc nu este disponibil pentru găzduire.",
+      "region_not_found": "Te rugăm să alegi o regiune.",
+      "below_minimum": "Configurația este sub cerințele minime ale jocului.",
+      "validation": "Verifică formularul și încearcă din nou.",
+      "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Bine ai revenit",
+      "subtitle": "Autentifică-te pentru a-ți gestiona serverele.",
+      "email": "Email",
+      "password": "Parolă",
+      "submit": "Autentificare",
+      "submitting": "Se autentifică…",
+      "noAccount": "Nu ai cont încă?",
+      "register": "Creează unul"
+    },
+    "register": {
+      "title": "Creează-ți contul",
+      "subtitle": "Înregistrarea e gratuită. Lansezi primul server în câteva minute.",
+      "name": "Nume",
+      "email": "Email",
+      "password": "Parolă",
+      "confirmPassword": "Confirmă parola",
+      "submit": "Creează cont",
+      "submitting": "Se creează…",
+      "hasAccount": "Ai deja cont?",
+      "login": "Autentifică-te"
+    },
+    "oauth": {
+      "or": "sau continuă cu",
+      "google": "Continuă cu Google",
+      "discord": "Continuă cu Discord"
+    },
+    "errors": {
+      "invalid_credentials": "Email sau parolă incorecte.",
+      "email_taken": "Există deja un cont cu acest email.",
+      "validation": "Verifică câmpurile evidențiate.",
+      "passwords_mismatch": "Parolele nu coincid.",
+      "password_short": "Parola trebuie să aibă cel puțin 8 caractere."
+    }
+  },
+  "dashboard": {
+    "title": "Serverele tale",
+    "subtitle": "Gestionează, monitorizează și scalează serverele tale de jocuri.",
+    "newServer": "Server nou",
+    "empty": {
+      "title": "Niciun server încă",
+      "desc": "Configurează primul tău server și va apărea aici.",
+      "cta": "Construiește un server"
+    },
+    "status": {
+      "PENDING": "În așteptare",
+      "INSTALLING": "Se instalează",
+      "STOPPED": "Oprit",
+      "STARTING": "Pornește",
+      "RUNNING": "Online",
+      "STOPPING": "Se oprește",
+      "SUSPENDED": "Suspendat",
+      "ERROR": "Eroare",
+      "DELETED": "Șters"
+    },
+    "server": {
+      "manage": "Gestionează",
+      "overview": "Prezentare",
+      "address": "Adresa serverului",
+      "notAssigned": "Neatribuită încă",
+      "game": "Joc",
+      "region": "Regiune",
+      "resources": "Resurse",
+      "uptime": "Uptime",
+      "players": "Jucători",
+      "cpu": "CPU",
+      "ram": "Memorie",
+      "disk": "Disc",
+      "console": "Consolă",
+      "consoleEmpty": "Nimic în consolă încă.",
+      "usage": "Consum în timp real",
+      "start": "Pornește",
+      "stop": "Oprește",
+      "restart": "Repornește",
+      "delete": "Șterge serverul",
+      "deleteTitle": "Ștergi acest server?",
+      "deleteDesc": "Serverul se oprește, abonamentul se anulează și toate fișierele sunt șterse. Acțiunea este ireversibilă.",
+      "rename": "Redenumește",
+      "renameTitle": "Redenumește serverul",
+      "actions": "Alimentare",
+      "subscription": "Abonament",
+      "renews": "Se reînnoiește pe {date}",
+      "endsOn": "Se încheie pe {date}",
+      "period": "Perioadă de facturare",
+      "version": "Versiune",
+      "created": "Creat",
+      "installingHint": "Serverul tău se instalează. De obicei durează câteva secunde.",
+      "errors": {
+        "invalid_transition": "Acțiunea nu este disponibilă în starea curentă.",
+        "server_not_found": "Serverul nu a fost găsit.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      }
+    }
+  },
+  "billing": {
+    "title": "Facturare",
+    "subtitle": "Abonamente, facturi și istoricul comenzilor.",
+    "subscriptions": "Abonamente",
+    "invoices": "Facturi",
+    "orders": "Comenzi",
+    "empty": "Nimic aici încă.",
+    "invoiceNumber": "Factură",
+    "amount": "Sumă",
+    "status": "Status",
+    "date": "Dată",
+    "server": "Server",
+    "period": "Perioadă",
+    "nextRenewal": "Următoarea reînnoire",
+    "cancelAtPeriodEnd": "Anulează la finalul perioadei",
+    "resume": "Reia reînnoirea",
+    "cancelScheduled": "Anulare programată",
+    "previewNotice": "Mod preview: facturile sunt generate, dar nu se procesează plăți reale încă.",
+    "statuses": {
+      "ACTIVE": "Activ",
+      "PAST_DUE": "Restant",
+      "CANCELLED": "Anulat",
+      "EXPIRED": "Expirat",
+      "PAID": "Plătită",
+      "OPEN": "Deschisă",
+      "DRAFT": "Ciornă",
+      "VOID": "Anulată",
+      "PENDING": "În așteptare",
+      "FAILED": "Eșuată"
+    }
+  },
+  "account": {
+    "title": "Cont",
+    "subtitle": "Profilul și setările de securitate.",
+    "profile": "Profil",
+    "name": "Nume",
+    "email": "Email",
+    "language": "Limba preferată",
+    "save": "Salvează modificările",
+    "saved": "Profil actualizat.",
+    "security": "Securitate",
+    "currentPassword": "Parola curentă",
+    "newPassword": "Parola nouă",
+    "confirmPassword": "Confirmă parola nouă",
+    "changePassword": "Schimbă parola",
+    "passwordChanged": "Parola a fost actualizată.",
+    "noPassword": "Te-ai înregistrat cu un cont social, deci nu există o parolă de schimbat.",
+    "memberSince": "Membru din {date}",
+    "role": "Rol",
+    "errors": {
+      "invalid_credentials": "Parola curentă este incorectă.",
+      "validation": "Verifică câmpurile evidențiate.",
+      "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "Catalog, prețuri și utilizatori.",
+    "nav": {
+      "overview": "Prezentare",
+      "games": "Jocuri",
+      "pricing": "Prețuri",
+      "users": "Utilizatori"
+    },
+    "stats": {
+      "users": "Utilizatori",
+      "servers": "Servere active",
+      "running": "Pornite acum",
+      "orders": "Comenzi plătite",
+      "revenue": "Venit"
+    },
+    "games": {
+      "title": "Jocuri",
+      "add": "Adaugă joc",
+      "edit": "Editează jocul",
+      "name": "Nume",
+      "slug": "Slug",
+      "tagline": "Slogan",
+      "description": "Descriere",
+      "image": "Cale imagine",
+      "accentColor": "Culoare accent",
+      "minRam": "RAM minim (GB)",
+      "recommendedRam": "RAM recomandat (GB)",
+      "minCpu": "vCPU minim",
+      "minStorage": "Stocare minimă (GB)",
+      "versions": "Versiuni (separate prin virgulă)",
+      "available": "Disponibil pentru închiriere",
+      "unavailableReason": "Motiv (dacă e indisponibil)",
+      "sortOrder": "Ordine",
+      "delete": "Șterge",
+      "deleteConfirm": "Ștergi acest joc? Dacă există servere care îl folosesc, va fi doar ascuns.",
+      "saved": "Joc salvat."
+    },
+    "pricing": {
+      "title": "Prețuri",
+      "desc": "Toate prețurile sunt stocate în cenți. Modificările se aplică imediat comenzilor noi.",
+      "currency": "Monedă",
+      "base": "Preț de bază (cenți / lună)",
+      "ram": "Preț per GB RAM (cenți)",
+      "cpu": "Preț per vCPU (cenți)",
+      "storage": "Preț per GB stocare (cenți)",
+      "quarterly": "Reducere trimestrială (0–0.9)",
+      "yearly": "Reducere anuală (0–0.9)",
+      "preview": "Preview: 8 GB / 4 vCPU / 50 GB, regiune de bază",
+      "saved": "Prețuri actualizate."
+    },
+    "users": {
+      "title": "Utilizatori",
+      "name": "Nume",
+      "email": "Email",
+      "role": "Rol",
+      "servers": "Servere",
+      "orders": "Comenzi",
+      "joined": "Înregistrat",
+      "makeAdmin": "Fă admin",
+      "makeUser": "Fă utilizator",
+      "cannotDemoteSelf": "Nu îți poți elimina propriul rol de admin."
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Pagina nu a fost găsită",
+      "desc": "Pagina pe care o cauți nu există sau a fost mutată.",
+      "cta": "Mergi acasă"
+    },
+    "generic": {
+      "title": "Ceva nu a mers bine",
+      "desc": "A apărut o eroare neașteptată. Te rugăm să încerci din nou.",
+      "retry": "Încearcă din nou"
+    }
+  }
+}
