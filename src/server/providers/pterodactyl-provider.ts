@@ -1,6 +1,8 @@
 import type {
   BackupResult,
   ConsoleLine,
+  FileEntry,
+  PlayerList,
   ProviderStatus,
   ProvisionResult,
   ResourceUsage,
@@ -17,6 +19,11 @@ import type {
  *  - getStatus     -> GET  /api/client/servers/{id}/resources (current_state)
  *  - getUsage      -> same endpoint (resources.cpu_absolute, memory_bytes, disk_bytes)
  *  - console       -> websocket /api/client/servers/{id}/websocket
+ *  - sendCommand   -> POST /api/client/servers/{id}/command { command }
+ *  - files         -> GET  /api/client/servers/{id}/files/list?directory=, /files/contents?file=,
+ *                     POST /files/write?file=, /files/create-folder, /files/delete
+ *  - getPlayers    -> not offered by the panel; query the game server (e.g. Minecraft status ping)
+ *  - add-ons       -> POST /files/pull { url, directory } to download into the install folder
  *
  * Every method intentionally throws until the integration is built; the
  * signatures are enforced by the `ServerProvider` interface.
@@ -71,5 +78,32 @@ export class PterodactylProvider implements ServerProvider {
   }
   deleteBackup(): Promise<void> {
     return this.notImplemented("deleteBackup");
+  }
+  listFiles(): Promise<FileEntry[]> {
+    return this.notImplemented("listFiles");
+  }
+  readFile(): Promise<string> {
+    return this.notImplemented("readFile");
+  }
+  writeFile(): Promise<void> {
+    return this.notImplemented("writeFile");
+  }
+  createDirectory(): Promise<void> {
+    return this.notImplemented("createDirectory");
+  }
+  deletePath(): Promise<void> {
+    return this.notImplemented("deletePath");
+  }
+  sendCommand(): Promise<void> {
+    return this.notImplemented("sendCommand");
+  }
+  getPlayers(): Promise<PlayerList> {
+    return this.notImplemented("getPlayers");
+  }
+  installAddon(): Promise<void> {
+    return this.notImplemented("installAddon");
+  }
+  uninstallAddon(): Promise<void> {
+    return this.notImplemented("uninstallAddon");
   }
 }

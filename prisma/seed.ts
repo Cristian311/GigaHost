@@ -2,6 +2,7 @@
 import "dotenv/config";
 import { hash } from "bcryptjs";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { addons } from "./addons";
 
 export const ADMIN_EMAIL = "admin@gigahost.local";
 export const ADMIN_PASSWORD = "admin1234";
@@ -237,6 +238,13 @@ export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}
     update: {},
     create: { code: "WELCOME10", kind: "PERCENT", value: 10, perUserLimit: 1 },
   });
+
+  log("Seeding add-ons…");
+  for (const addon of addons) {
+    const { games: addonGames, ...rest } = addon;
+    const data = { ...rest, gameSlugs: JSON.stringify(addonGames) };
+    await prisma.addon.upsert({ where: { slug: addon.slug }, update: data, create: data });
+  }
 
   log("Seeding admin user…");
   const passwordHash = await hash(ADMIN_PASSWORD, 10);

@@ -104,8 +104,34 @@ enum ServerEventType {
   UNSUSPENDED
   RENEWED
   PAYMENT_FAILED
+  ADDON_INSTALLED
+  ADDON_REMOVED
+  TASK_RAN
   DELETED
   ERROR
+}
+
+enum ConsoleEntryKind {
+  COMMAND
+  OUTPUT
+}
+
+enum TaskAction {
+  RESTART
+  BACKUP
+  COMMAND
+}
+
+enum TaskFrequency {
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+enum AddonKind {
+  PLUGIN
+  MOD
+  MODPACK
 }
 
 // ---------------------------------------------------------------------------
@@ -342,8 +368,106 @@ model Server {
   orders       Order[]
   backups      Backup[]
   events       ServerEvent[]
+  files        ServerFile[]
+  consoleEntries ConsoleEntry[]
+  tasks        ScheduledTask[]
+  addons       ServerAddon[]
 
   @@index([ownerId])
+}
+
+/// State of the *mock* provider: a virtual filesystem per server. A real
+/// backend (Pterodactyl) reads and writes files on the node and never touches
+/// this table.
+model ServerFile {
+  id          String   @id @default(cuid())
+  serverId    String
+  /// Relative, normalised, forward slashes: "plugins/Essentials/config.yml".
+  path        String
+  isDirectory Boolean  @default(false)
+  /// Archives, jars and world data can be listed and deleted but not edited.
+  isBinary    Boolean  @default(false)
+  content     String?  @db.Text
+  sizeBytes   Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, path])
+}
+
+/// State of the *mock* provider: commands sent to a server and its answers.
+model ConsoleEntry {
+  id        String           @id @default(cuid())
+  serverId  String
+  kind      ConsoleEntryKind
+  level     String           @default("info")
+  text      String           @db.Text
+  createdAt DateTime         @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, createdAt])
+}
+
+model ScheduledTask {
+  id            String        @id @default(cuid())
+  serverId      String
+  name          String
+  action        TaskAction
+  /// Console command for COMMAND tasks.
+  payload       String?
+  frequency     TaskFrequency
+  /// HOURLY: run every N hours.
+  everyHours    Int           @default(1)
+  /// DAILY / WEEKLY: minutes after midnight, UTC (the UI converts from local time).
+  minuteOfDayUtc Int          @default(0)
+  /// WEEKLY: 0 = Sunday … 6 = Saturday, UTC.
+  dayOfWeekUtc  Int           @default(0)
+  enabled       Boolean       @default(true)
+  nextRunAt     DateTime
+  lastRunAt     DateTime?
+  /// "ok", "skipped: …" or "failed: …"
+  lastStatus    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, nextRunAt])
+  @@index([serverId])
+}
+
+/// Catalogue of plugins, mods and modpacks that can be installed with one click.
+model Addon {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String    @db.Text
+  kind        AddonKind
+  /// JSON-encoded string[] of game slugs this add-on works with.
+  gameSlugs   String    @db.VarChar(512)
+  version     String
+  author      String
+  sizeKb      Int
+  /// Folder inside the server it is installed into, e.g. "plugins".
+  installDir  String
+  fileName    String
+  createdAt   DateTime  @default(now())
+
+  installs ServerAddon[]
+}
+
+model ServerAddon {
+  id          String   @id @default(cuid())
+  serverId    String
+  addonId     String
+  installedAt DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  addon  Addon  @relation(fields: [addonId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, addonId])
 }
 
 /// Simulated (Phase 1) or real (Phase 2) server backups.

@@ -4,15 +4,19 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Cpu, HardDrive, MemoryStick } from "lucide-react";
 import { getFormatter, getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { CopyButton } from "@/components/copy-button";
+import { AddonsPanel } from "@/components/dashboard/addons-panel";
 import { BackupsPanel } from "@/components/dashboard/backups-panel";
 import { EventsList } from "@/components/dashboard/events-list";
+import { FilesPanel } from "@/components/dashboard/files-panel";
 import { LivePanel } from "@/components/dashboard/live-panel";
+import { PlayersPanel } from "@/components/dashboard/players-panel";
 import { PowerControls } from "@/components/dashboard/power-controls";
 import { ResizeDialog } from "@/components/dashboard/resize-dialog";
 import { ServerActionsMenu } from "@/components/dashboard/server-actions-menu";
 import { ServerStatusBadge } from "@/components/dashboard/server-status-badge";
 import { ServerTabs } from "@/components/dashboard/server-tabs";
 import { SubscriptionActions } from "@/components/dashboard/subscription-actions";
+import { TasksPanel } from "@/components/dashboard/tasks-panel";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
@@ -50,6 +54,9 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
   const address = server.ip ? `${server.ip}:${server.port}` : null;
   const sub = server.subscription;
   const resizable = server.status === "STOPPED" || server.status === "RUNNING";
+  // Files and add-ons exist once the server is installed, and are closed while
+  // it is suspended.
+  const panelAvailable = !["PENDING", "INSTALLING", "SUSPENDED"].includes(server.status);
 
   const overview = (
     <>
@@ -76,6 +83,7 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
             <SubscriptionActions
               subscriptionId={sub.id}
               cancelAtPeriodEnd={sub.cancelAtPeriodEnd}
+              pastDue={sub.status === "PAST_DUE"}
             />
           </div>
           <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-4">
@@ -177,9 +185,15 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
       ) : null}
 
       <ServerTabs
-        overview={overview}
-        backups={<BackupsPanel serverId={server.id} />}
-        activity={<EventsList events={events} />}
+        panels={{
+          overview,
+          files: <FilesPanel serverId={server.id} available={panelAvailable} />,
+          players: <PlayersPanel serverId={server.id} running={server.status === "RUNNING"} />,
+          addons: <AddonsPanel serverId={server.id} available={panelAvailable} />,
+          tasks: <TasksPanel serverId={server.id} />,
+          backups: <BackupsPanel serverId={server.id} />,
+          activity: <EventsList events={events} />,
+        }}
       />
     </>
   );

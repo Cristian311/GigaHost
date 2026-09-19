@@ -1,7 +1,15 @@
 import { MOCK_TIMINGS } from "@/lib/constants";
+import { prisma } from "@/lib/db";
+import { ancestorsOf, baseName, joinPath, parentOf } from "@/lib/files/path";
+import { AppError } from "@/server/errors";
+import { defaultFiles, type SeedContext } from "./mock-files";
 import type {
+  AddonFile,
   BackupResult,
   ConsoleLine,
+  FileEntry,
+  PlayerInfo,
+  PlayerList,
   ProviderStatus,
   ProvisionInput,
   ProvisionResult,
@@ -9,6 +17,32 @@ import type {
   ServerProvider,
   ServerRef,
 } from "./types";
+
+const MAX_PLAYERS = 20;
+const PLAYER_NAMES = [
+  "Steve",
+  "Alex",
+  "Nova",
+  "Pixel",
+  "Kratos",
+  "Luna",
+  "Zed",
+  "Mira",
+  "Orion",
+  "Vex",
+  "Juno",
+  "Rook",
+];
+/** A kicked player stays away this long before the simulation lets them back. */
+const KICK_MS = 10 * 60_000;
+
+/** Provider ids are "mock_<serverId>"; the mock keeps its state under the server id. */
+const serverIdOf = (ref: ServerRef) => ref.providerId.replace(/^mock_/, "");
+const byteLength = (text: string) => Buffer.byteLength(text, "utf8");
+
+type Reply = { level: ConsoleLine["level"]; text: string };
+const info = (text: string): Reply => ({ level: "info", text });
+const error = (text: string): Reply => ({ level: "error", text });
 
 /** Small deterministic PRNG so the mock output is stable per server. */
 function hashString(input: string): number {
@@ -54,6 +88,13 @@ export class MockProvider implements ServerProvider {
     const prefix = REGION_IP_PREFIX[input.regionCode] ?? "10.0";
     const ip = `${prefix}.${Math.floor(rand() * 200) + 10}.${Math.floor(rand() * 200) + 10}`;
     const port = 25000 + Math.floor(rand() * 5000);
+    await this.seedFiles(input.serverId, {
+      name: input.name,
+      gameSlug: input.gameSlug,
+      gameVersion: input.gameVersion ?? null,
+      port,
+      maxPlayers: MAX_PLAYERS,
+    });
     return { providerId: `mock_${input.serverId}`, ip, port };
   }
 
@@ -123,7 +164,8 @@ export class MockProvider implements ServerProvider {
     }
 
     const last = history[history.length - 1];
-    const players = running ? Math.floor(mulberry32(seed ^ Math.floor(now / 60_000))() * 12) : 0;
+    // Same source as the player list, so the tile and the list always agree.
+    const players = (await this.getPlayers(ref)).online;
 
     return {
       cpuPct: last.cpuPct,
@@ -189,8 +231,310 @@ export class MockProvider implements ServerProvider {
         t += 15_000 + Math.floor(rand() * 45_000);
         i++;
       }
+
+      // What the customer typed, and what the server answered, since it booted.
+      const entries = await prisma.consoleEntry.findMany({
+        where: { serverId: serverIdOf(ref), createdAt: { gte: ref.statusChangedAt } },
+        orderBy: { createdAt: "asc" },
+        take: 200,
+      });
+      for (const entry of entries) {
+        lines.push({
+          ts: entry.createdAt.toISOString(),
+          level: entry.level as ConsoleLine["level"],
+          text: entry.kind === "COMMAND" ? `> ${entry.text}` : entry.text,
+        });
+      }
+      lines.sort((a, b) => a.ts.localeCompare(b.ts));
     }
 
     return lines.slice(-limit);
+  }
+
+  // --- players ---------------------------------------------------------------------
+
+  async getPlayers(ref: ServerRef): Promise<PlayerList> {
+    if (ref.status !== "RUNNING") return { online: 0, max: MAX_PLAYERS, players: [] };
+
+    const seed = hashString(ref.providerId);
+    const now = Date.now();
+    // How many are on changes every minute; who they are is a stable ordering
+    // per server, so the list does not reshuffle while someone is looking at it.
+    const count = Math.floor(mulberry32(seed ^ Math.floor(now / 60_000))() * PLAYER_NAMES.length);
+    const order = mulberry32(seed);
+    const roster = PLAYER_NAMES.map((name) => ({ name, key: order() }))
+      .sort((a, b) => a.key - b.key)
+      .map((entry) => entry.name);
+
+    const kicked = await this.recentlyKicked(ref);
+    const startedAt = ref.statusChangedAt.getTime();
+    const players: PlayerInfo[] = roster
+      .slice(0, count)
+      .filter((name) => !kicked.has(name.toLowerCase()))
+      .map((name) => {
+        const rand = mulberry32(hashString(`${ref.providerId}:${name}`));
+        const joinedAt = Math.min(now, startedAt + 6000 + Math.floor(rand() * 600_000));
+        return {
+          name,
+          joinedAt: new Date(joinedAt).toISOString(),
+          pingMs: 18 + Math.floor(rand() * 90),
+        };
+      });
+
+    return { online: players.length, max: MAX_PLAYERS, players };
+  }
+
+  private async recentlyKicked(ref: ServerRef): Promise<Set<string>> {
+    const since = new Date(Math.max(Date.now() - KICK_MS, ref.statusChangedAt.getTime()));
+    const commands = await prisma.consoleEntry.findMany({
+      where: { serverId: serverIdOf(ref), kind: "COMMAND", createdAt: { gte: since } },
+      select: { text: true },
+    });
+    const names = new Set<string>();
+    for (const { text } of commands) {
+      const match = text.match(/^\/?(?:kick|ban)\s+(\S+)/i);
+      if (match) names.add(match[1].toLowerCase());
+    }
+    return names;
+  }
+
+  // --- console ---------------------------------------------------------------------
+
+  async sendCommand(ref: ServerRef, command: string): Promise<void> {
+    if (ref.status !== "RUNNING") throw new AppError("server_not_running", 409);
+
+    const serverId = serverIdOf(ref);
+    // Answered before the command is stored: "kick Steve" has to find Steve
+    // still online, and storing it first would already have removed him.
+    const replies = await this.respondTo(ref, command);
+    const now = Date.now();
+    await prisma.consoleEntry.createMany({
+      data: [
+        { serverId, kind: "COMMAND", level: "info", text: command, createdAt: new Date(now) },
+        ...replies.map((reply, index) => ({
+          serverId,
+          kind: "OUTPUT" as const,
+          level: reply.level,
+          text: reply.text,
+          // A millisecond apart, so they keep their order when sorted by time.
+          createdAt: new Date(now + index + 1),
+        })),
+      ],
+    });
+  }
+
+  private async respondTo(ref: ServerRef, raw: string): Promise<Reply[]> {
+    const [name = "", ...args] = raw.replace(/^\//, "").trim().split(/\s+/);
+    const verb = name.toLowerCase();
+    const rest = args.join(" ");
+
+    switch (verb) {
+      case "help":
+        return [
+          info(
+            "Commands: help, list, say <message>, kick <player>, ban <player>, op <player>, deop <player>, whitelist add|remove <player>, save-all, time set <day|night>, weather <clear|rain|thunder>",
+          ),
+        ];
+      case "list": {
+        const { online, max, players } = await this.getPlayers(ref);
+        const names = players.map((player) => player.name).join(", ");
+        return [
+          info(`There are ${online} of a max of ${max} players online${names ? `: ${names}` : ""}`),
+        ];
+      }
+      case "say":
+        return rest ? [info(`[Server] ${rest}`)] : [error("Usage: say <message>")];
+      case "kick":
+      case "ban": {
+        if (!args[0]) return [error(`Usage: ${verb} <player>`)];
+        const { players } = await this.getPlayers(ref);
+        const target = players.find((p) => p.name.toLowerCase() === args[0].toLowerCase());
+        if (!target) return [error("No player was found")];
+        return [
+          info(
+            verb === "kick"
+              ? `Kicked ${target.name}: Kicked by an operator`
+              : `Banned ${target.name}: Banned by an operator`,
+          ),
+        ];
+      }
+      case "op":
+        return args[0] ? [info(`Made ${args[0]} a server operator`)] : [error("Usage: op <player>")];
+      case "deop":
+        return args[0]
+          ? [info(`Made ${args[0]} no longer a server operator`)]
+          : [error("Usage: deop <player>")];
+      case "whitelist": {
+        if (!args[0] || !args[1]) return [error("Usage: whitelist add|remove <player>")];
+        return [
+          info(
+            args[0] === "remove"
+              ? `Removed ${args[1]} from the whitelist`
+              : `Added ${args[1]} to the whitelist`,
+          ),
+        ];
+      }
+      case "save-all":
+        return [info("Saving the game (this may take a moment!)"), info("Saved the game")];
+      case "time":
+        return [info(`Set the time to ${args[1] ?? "day"}`)];
+      case "weather":
+        return [info(`Set the weather to ${args[0] ?? "clear"}`)];
+      default:
+        return [
+          error("Unknown or incomplete command, see below for error"),
+          error(`${raw}<--[HERE]`),
+        ];
+    }
+  }
+
+  // --- files -----------------------------------------------------------------------
+
+  private async seedFiles(serverId: string, ctx: SeedContext) {
+    await prisma.serverFile.createMany({
+      data: defaultFiles(ctx).map((file) => ({
+        serverId,
+        path: file.path,
+        isDirectory: "isDirectory" in file,
+        isBinary: "isBinary" in file,
+        content: "content" in file ? file.content : null,
+        sizeBytes:
+          "content" in file ? byteLength(file.content) : "sizeBytes" in file ? file.sizeBytes : 0,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  /** Servers created before the file manager existed get their files on first use. */
+  private async ensureSeeded(ref: ServerRef) {
+    const serverId = serverIdOf(ref);
+    if ((await prisma.serverFile.count({ where: { serverId } })) > 0) return;
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      include: { game: { select: { slug: true } } },
+    });
+    if (!server) return;
+    await this.seedFiles(serverId, {
+      name: server.name,
+      gameSlug: server.game.slug,
+      gameVersion: server.gameVersion,
+      port: server.port ?? 25565,
+      maxPlayers: MAX_PLAYERS,
+    });
+  }
+
+  private async requireDirectory(serverId: string, directory: string) {
+    if (directory === "") return;
+    const entry = await prisma.serverFile.findUnique({
+      where: { serverId_path: { serverId, path: directory } },
+    });
+    if (!entry) throw new AppError("file_not_found", 404);
+    if (!entry.isDirectory) throw new AppError("not_a_directory", 400);
+  }
+
+  async listFiles(ref: ServerRef, directory: string): Promise<FileEntry[]> {
+    await this.ensureSeeded(ref);
+    const serverId = serverIdOf(ref);
+    await this.requireDirectory(serverId, directory);
+
+    const rows = await prisma.serverFile.findMany({
+      where: { serverId, ...(directory ? { path: { startsWith: `${directory}/` } } : {}) },
+    });
+    return rows
+      .filter((row) => parentOf(row.path) === directory)
+      .map((row) => ({
+        name: baseName(row.path),
+        path: row.path,
+        isDirectory: row.isDirectory,
+        isBinary: row.isBinary,
+        sizeBytes: row.sizeBytes,
+        updatedAt: row.updatedAt,
+      }))
+      .sort((a, b) =>
+        a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : a.isDirectory ? -1 : 1,
+      );
+  }
+
+  async readFile(ref: ServerRef, path: string): Promise<string> {
+    await this.ensureSeeded(ref);
+    const entry = await prisma.serverFile.findUnique({
+      where: { serverId_path: { serverId: serverIdOf(ref), path } },
+    });
+    if (!entry) throw new AppError("file_not_found", 404);
+    if (entry.isDirectory || entry.isBinary) throw new AppError("file_not_editable", 400);
+    return entry.content ?? "";
+  }
+
+  async writeFile(ref: ServerRef, path: string, content: string): Promise<void> {
+    await this.ensureSeeded(ref);
+    const serverId = serverIdOf(ref);
+    if (!path) throw new AppError("invalid_path", 400);
+    await this.requireDirectory(serverId, parentOf(path));
+
+    const existing = await prisma.serverFile.findUnique({
+      where: { serverId_path: { serverId, path } },
+    });
+    if (existing?.isDirectory || existing?.isBinary) throw new AppError("file_not_editable", 400);
+
+    await prisma.serverFile.upsert({
+      where: { serverId_path: { serverId, path } },
+      create: { serverId, path, content, sizeBytes: byteLength(content) },
+      update: { content, sizeBytes: byteLength(content) },
+    });
+  }
+
+  async createDirectory(ref: ServerRef, path: string): Promise<void> {
+    await this.ensureSeeded(ref);
+    const serverId = serverIdOf(ref);
+    if (!path) throw new AppError("invalid_path", 400);
+    await this.requireDirectory(serverId, parentOf(path));
+
+    const existing = await prisma.serverFile.findUnique({
+      where: { serverId_path: { serverId, path } },
+    });
+    if (existing) throw new AppError("path_exists", 409);
+    await prisma.serverFile.create({ data: { serverId, path, isDirectory: true } });
+  }
+
+  async deletePath(ref: ServerRef, path: string): Promise<void> {
+    await this.ensureSeeded(ref);
+    if (!path) throw new AppError("invalid_path", 400, "The server root cannot be deleted.");
+
+    const { count } = await prisma.serverFile.deleteMany({
+      // The trailing slash matters: deleting "world" must not take "world_nether".
+      where: {
+        serverId: serverIdOf(ref),
+        OR: [{ path }, { path: { startsWith: `${path}/` } }],
+      },
+    });
+    if (count === 0) throw new AppError("file_not_found", 404);
+  }
+
+  // --- add-ons ---------------------------------------------------------------------
+
+  async installAddon(ref: ServerRef, addon: AddonFile): Promise<void> {
+    await this.ensureSeeded(ref);
+    const serverId = serverIdOf(ref);
+    const path = joinPath(addon.installDir, addon.fileName);
+
+    // The install folder may have been deleted by the customer; put it back.
+    for (const directory of ancestorsOf(path)) {
+      await prisma.serverFile.upsert({
+        where: { serverId_path: { serverId, path: directory } },
+        create: { serverId, path: directory, isDirectory: true },
+        update: {},
+      });
+    }
+    await prisma.serverFile.upsert({
+      where: { serverId_path: { serverId, path } },
+      create: { serverId, path, isBinary: true, sizeBytes: addon.sizeKb * 1024 },
+      update: { isBinary: true, sizeBytes: addon.sizeKb * 1024 },
+    });
+  }
+
+  async uninstallAddon(ref: ServerRef, addon: AddonFile): Promise<void> {
+    await prisma.serverFile.deleteMany({
+      where: { serverId: serverIdOf(ref), path: joinPath(addon.installDir, addon.fileName) },
+    });
   }
 }

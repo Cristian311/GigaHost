@@ -4,37 +4,33 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const TABS = ["overview", "files", "players", "addons", "tasks", "backups", "activity"] as const;
+export type ServerTab = (typeof TABS)[number];
+
 /**
  * Client shell around server-rendered panels. The panels arrive as props, so
  * the activity log stays a Server Component while the tab strip is interactive.
  */
-export function ServerTabs({
-  overview,
-  backups,
-  activity,
-}: {
-  overview: ReactNode;
-  backups: ReactNode;
-  activity: ReactNode;
-}) {
+export function ServerTabs({ panels }: { panels: Record<ServerTab, ReactNode> }) {
   const t = useTranslations("dashboard.tabs");
 
   return (
     <Tabs defaultValue="overview" className="mt-6">
-      <TabsList>
-        <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
-        <TabsTrigger value="backups">{t("backups")}</TabsTrigger>
-        <TabsTrigger value="activity">{t("activity")}</TabsTrigger>
-      </TabsList>
-      <TabsContent value="overview" className="pt-4">
-        {overview}
-      </TabsContent>
-      <TabsContent value="backups" className="pt-4">
-        {backups}
-      </TabsContent>
-      <TabsContent value="activity" className="pt-4">
-        {activity}
-      </TabsContent>
+      {/* Seven tabs do not fit a phone; the strip scrolls rather than wraps. */}
+      <div className="scrollbar-thin overflow-x-auto">
+        <TabsList>
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab} value={tab}>
+              {t(tab)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+      {TABS.map((tab) => (
+        <TabsContent key={tab} value={tab} className="pt-4">
+          {panels[tab]}
+        </TabsContent>
+      ))}
     </Tabs>
   );
 }

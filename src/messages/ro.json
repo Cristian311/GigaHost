@@ -375,7 +375,11 @@
     "tabs": {
       "overview": "Prezentare",
       "backups": "Backup-uri",
-      "activity": "Activitate"
+      "activity": "Activitate",
+      "files": "Fișiere",
+      "players": "Jucători",
+      "addons": "Moduri și plugin-uri",
+      "tasks": "Programări"
     },
     "resize": {
       "title": "Schimbă resursele",
@@ -452,7 +456,141 @@
         "DELETED": "Server șters",
         "ERROR": "Eroare",
         "RENEWED": "Abonament reînnoit",
-        "PAYMENT_FAILED": "Plată eșuată"
+        "PAYMENT_FAILED": "Plată eșuată",
+        "ADDON_INSTALLED": "Extensie instalată",
+        "ADDON_REMOVED": "Extensie eliminată",
+        "TASK_RAN": "Sarcină programată rulată"
+      }
+    },
+    "console": {
+      "placeholder": "Scrie o comandă și apasă Enter",
+      "offline": "Pornește serverul ca să trimiți comenzi",
+      "errors": {
+        "server_not_running": "Serverul nu rulează.",
+        "server_unavailable": "Serverul nu este disponibil acum.",
+        "validation": "Comanda nu este validă.",
+        "invalid_transition": "Serverul nu poate face asta acum.",
+        "internal_error": "Comanda nu a putut fi trimisă."
+      }
+    },
+    "files": {
+      "title": "Fișiere",
+      "root": "Rădăcina serverului",
+      "newFile": "Fișier nou",
+      "newFolder": "Dosar nou",
+      "create": "Creează",
+      "delete": "Șterge",
+      "saved": "Fișier salvat.",
+      "empty": "Acest dosar este gol.",
+      "unavailable": "Fișierele sunt disponibile după ce serverul este instalat și nu este suspendat.",
+      "binaryHint": "Acest fișier nu poate fi editat în browser.",
+      "inFolder": "În {folder}",
+      "filePlaceholder": "ex. note.txt",
+      "folderPlaceholder": "ex. configurari",
+      "restartHint": "Majoritatea modificărilor se aplică după repornirea serverului.",
+      "confirmDeleteFile": "Ștergi {name}? Acțiunea nu poate fi anulată.",
+      "confirmDeleteFolder": "Ștergi dosarul {name} cu tot ce conține? Acțiunea nu poate fi anulată.",
+      "errors": {
+        "invalid_path": "Acest nume nu este permis.",
+        "file_not_found": "Fișierul sau dosarul nu mai există.",
+        "file_not_editable": "Acest fișier nu poate fi editat în browser.",
+        "file_too_large": "Fișierul este prea mare pentru a fi salvat din browser.",
+        "path_exists": "Există deja ceva cu acest nume aici.",
+        "not_a_directory": "Acesta este un fișier, nu un dosar.",
+        "server_unavailable": "Serverul nu este disponibil acum.",
+        "validation": "Verifică numele și încearcă din nou.",
+        "internal_error": "Ceva nu a mers. Încearcă din nou."
+      }
+    },
+    "players": {
+      "title": "Jucători conectați",
+      "count": "{online} / {max}",
+      "empty": "Nu este nimeni conectat acum.",
+      "offline": "Pornește serverul ca să vezi cine joacă.",
+      "joined": "a intrat {when}",
+      "error": "Nu a funcționat. Încearcă din nou.",
+      "actions": {
+        "op": "Fă-l operator",
+        "kick": "Dă afară",
+        "ban": "Interzice"
+      },
+      "confirm": {
+        "kick": "Îl dai afară pe {player} de pe server?",
+        "ban": "Îi interzici accesul lui {player}? Nu se va mai putea reconecta."
+      },
+      "done": {
+        "op": "{player} este acum operator.",
+        "kick": "{player} a fost dat afară.",
+        "ban": "{player} a primit interdicție."
+      }
+    },
+    "addons": {
+      "title": "Moduri și plugin-uri",
+      "search": "Caută…",
+      "install": "Instalează",
+      "remove": "Elimină",
+      "installed": "{name} a fost instalat.",
+      "removed": "{name} a fost eliminat.",
+      "restartRequired": "Repornește serverul ca să aplici modificarea.",
+      "confirmRemove": "Elimini {name} de pe acest server?",
+      "noneForGame": "Încă nu există extensii cu instalare rapidă pentru acest joc.",
+      "noMatch": "Nimic nu corespunde căutării.",
+      "unavailable": "Extensiile sunt disponibile după ce serverul este instalat și nu este suspendat.",
+      "kinds": {
+        "ALL": "Toate",
+        "PLUGIN": "Plugin",
+        "MOD": "Mod",
+        "MODPACK": "Pachet de moduri"
+      },
+      "errors": {
+        "addon_not_found": "Această extensie nu mai există.",
+        "addon_incompatible": "Această extensie nu funcționează cu acest joc.",
+        "addon_already_installed": "Această extensie este deja instalată.",
+        "addon_not_installed": "Această extensie nu este instalată.",
+        "server_unavailable": "Serverul nu este disponibil acum.",
+        "internal_error": "Ceva nu a mers. Încearcă din nou."
+      }
+    },
+    "tasks": {
+      "title": "Sarcini programate",
+      "description": "Repornește, fă backup sau rulează o comandă automat.",
+      "add": "Sarcină nouă",
+      "edit": "Editează sarcina",
+      "delete": "Șterge",
+      "saved": "Sarcină salvată.",
+      "empty": "Nicio sarcină programată încă.",
+      "disabled": "În pauză",
+      "name": "Nume",
+      "namePlaceholder": "ex. Repornire zilnică",
+      "action": "Ce să facă",
+      "frequency": "Cât de des",
+      "command": "Comandă",
+      "everyHoursLabel": "La fiecare … ore",
+      "day": "Ziua",
+      "time": "Ora",
+      "enabled": "Activă",
+      "timezoneHint": "Orele sunt în fusul tău orar local.",
+      "everyHours": "{hours, plural, one {În fiecare oră} few {La fiecare # ore} other {La fiecare # de ore}}",
+      "dailyAt": "În fiecare zi la {time}",
+      "weeklyAt": "În fiecare {day} la {time}",
+      "nextRun": "Următoarea rulare: {when}",
+      "lastRun": "ultima rulare: {status}",
+      "confirmDelete": "Ștergi sarcina „{name}”?",
+      "actions": {
+        "RESTART": "Repornire",
+        "BACKUP": "Backup",
+        "COMMAND": "Comandă"
+      },
+      "frequencies": {
+        "HOURLY": "La câteva ore",
+        "DAILY": "Zilnic",
+        "WEEKLY": "Săptămânal"
+      },
+      "errors": {
+        "task_limit": "Ai atins numărul maxim de sarcini pentru acest server.",
+        "task_not_found": "Sarcina nu mai există.",
+        "validation": "Verifică formularul și încearcă din nou.",
+        "internal_error": "Ceva nu a mers. Încearcă din nou."
       }
     }
   },

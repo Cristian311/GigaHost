@@ -24,6 +24,14 @@ export const MOCK_TIMINGS = {
 /** Backups kept per server before the oldest must be removed. */
 export const MAX_BACKUPS_PER_SERVER = 5;
 
+/** Largest file the in-browser editor will save (fits a TEXT column). */
+export const MAX_EDITABLE_FILE_BYTES = 60_000;
+
+export const MAX_TASKS_PER_SERVER = 10;
+
+/** Longest console command accepted from the dashboard. */
+export const MAX_COMMAND_LENGTH = 200;
+
 /** What happens to a subscription whose renewal could not be charged. */
 export const BILLING_POLICY = {
   /** Days a subscription may stay unpaid before its server is suspended. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, Cpu, HardDrive, MemoryStick, Terminal, Users } from "lucide-react";
+import { ConsoleInput } from "./console-input";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
@@ -26,6 +27,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
   const router = useRouter();
   const [usage, setUsage] = useState<ResourceUsage | null>(null);
   const [lines, setLines] = useState<ConsoleLine[]>([]);
+  // Bumped after a command is sent, so its answer shows up without waiting for
+  // the next poll.
+  const [refreshKey, setRefreshKey] = useState(0);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +63,7 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       cancelled = true;
       clearInterval(id);
     };
-  }, [serverId, status, router]);
+  }, [serverId, status, router, refreshKey]);
 
   useEffect(() => {
     const el = consoleRef.current;
@@ -171,6 +175,11 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
             ))
           )}
         </div>
+        <ConsoleInput
+          serverId={serverId}
+          disabled={status !== "RUNNING"}
+          onSent={() => setRefreshKey((key) => key + 1)}
+        />
       </section>
     </div>
   );

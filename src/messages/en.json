@@ -375,7 +375,11 @@
     "tabs": {
       "overview": "Overview",
       "backups": "Backups",
-      "activity": "Activity"
+      "activity": "Activity",
+      "files": "Files",
+      "players": "Players",
+      "addons": "Mods & plugins",
+      "tasks": "Schedules"
     },
     "resize": {
       "title": "Change resources",
@@ -452,7 +456,141 @@
         "DELETED": "Server deleted",
         "ERROR": "Error",
         "RENEWED": "Subscription renewed",
-        "PAYMENT_FAILED": "Payment failed"
+        "PAYMENT_FAILED": "Payment failed",
+        "ADDON_INSTALLED": "Add-on installed",
+        "ADDON_REMOVED": "Add-on removed",
+        "TASK_RAN": "Scheduled task ran"
+      }
+    },
+    "console": {
+      "placeholder": "Type a command and press Enter",
+      "offline": "Start the server to send commands",
+      "errors": {
+        "server_not_running": "The server is not running.",
+        "server_unavailable": "The server is not available right now.",
+        "validation": "That command is not valid.",
+        "invalid_transition": "The server cannot do that right now.",
+        "internal_error": "The command could not be sent."
+      }
+    },
+    "files": {
+      "title": "Files",
+      "root": "Server root",
+      "newFile": "New file",
+      "newFolder": "New folder",
+      "create": "Create",
+      "delete": "Delete",
+      "saved": "File saved.",
+      "empty": "This folder is empty.",
+      "unavailable": "Files are available once the server is installed and not suspended.",
+      "binaryHint": "This file cannot be edited in the browser.",
+      "inFolder": "In {folder}",
+      "filePlaceholder": "e.g. notes.txt",
+      "folderPlaceholder": "e.g. configs",
+      "restartHint": "Most changes take effect after the server restarts.",
+      "confirmDeleteFile": "Delete {name}? This cannot be undone.",
+      "confirmDeleteFolder": "Delete the folder {name} and everything in it? This cannot be undone.",
+      "errors": {
+        "invalid_path": "That name is not allowed.",
+        "file_not_found": "That file or folder no longer exists.",
+        "file_not_editable": "This file cannot be edited in the browser.",
+        "file_too_large": "The file is too large to save from the browser.",
+        "path_exists": "Something with that name already exists here.",
+        "not_a_directory": "That is a file, not a folder.",
+        "server_unavailable": "The server is not available right now.",
+        "validation": "Please check the name and try again.",
+        "internal_error": "Something went wrong. Please try again."
+      }
+    },
+    "players": {
+      "title": "Players online",
+      "count": "{online} / {max}",
+      "empty": "Nobody is online right now.",
+      "offline": "Start the server to see who is playing.",
+      "joined": "joined {when}",
+      "error": "That did not work. Please try again.",
+      "actions": {
+        "op": "Make operator",
+        "kick": "Kick",
+        "ban": "Ban"
+      },
+      "confirm": {
+        "kick": "Kick {player} from the server?",
+        "ban": "Ban {player}? They will not be able to rejoin."
+      },
+      "done": {
+        "op": "{player} is now an operator.",
+        "kick": "{player} was kicked.",
+        "ban": "{player} was banned."
+      }
+    },
+    "addons": {
+      "title": "Mods & plugins",
+      "search": "Search…",
+      "install": "Install",
+      "remove": "Remove",
+      "installed": "{name} installed.",
+      "removed": "{name} removed.",
+      "restartRequired": "Restart the server to apply the change.",
+      "confirmRemove": "Remove {name} from this server?",
+      "noneForGame": "There are no one-click add-ons for this game yet.",
+      "noMatch": "Nothing matches your search.",
+      "unavailable": "Add-ons are available once the server is installed and not suspended.",
+      "kinds": {
+        "ALL": "All",
+        "PLUGIN": "Plugin",
+        "MOD": "Mod",
+        "MODPACK": "Modpack"
+      },
+      "errors": {
+        "addon_not_found": "That add-on no longer exists.",
+        "addon_incompatible": "That add-on does not work with this game.",
+        "addon_already_installed": "That add-on is already installed.",
+        "addon_not_installed": "That add-on is not installed.",
+        "server_unavailable": "The server is not available right now.",
+        "internal_error": "Something went wrong. Please try again."
+      }
+    },
+    "tasks": {
+      "title": "Scheduled tasks",
+      "description": "Restart, back up or run a command automatically.",
+      "add": "New task",
+      "edit": "Edit task",
+      "delete": "Delete",
+      "saved": "Task saved.",
+      "empty": "No scheduled tasks yet.",
+      "disabled": "Paused",
+      "name": "Name",
+      "namePlaceholder": "e.g. Daily restart",
+      "action": "What to do",
+      "frequency": "How often",
+      "command": "Command",
+      "everyHoursLabel": "Every … hours",
+      "day": "Day",
+      "time": "Time",
+      "enabled": "Enabled",
+      "timezoneHint": "Times are in your local time zone.",
+      "everyHours": "Every {hours, plural, one {hour} other {# hours}}",
+      "dailyAt": "Every day at {time}",
+      "weeklyAt": "Every {day} at {time}",
+      "nextRun": "Next run: {when}",
+      "lastRun": "last run: {status}",
+      "confirmDelete": "Delete the task \"{name}\"?",
+      "actions": {
+        "RESTART": "Restart",
+        "BACKUP": "Backup",
+        "COMMAND": "Command"
+      },
+      "frequencies": {
+        "HOURLY": "Every few hours",
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly"
+      },
+      "errors": {
+        "task_limit": "You have reached the maximum number of tasks for this server.",
+        "task_not_found": "That task no longer exists.",
+        "validation": "Please check the form and try again.",
+        "internal_error": "Something went wrong. Please try again."
       }
     }
   },

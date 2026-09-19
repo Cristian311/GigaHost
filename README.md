@@ -2,7 +2,7 @@
 
 Game-server hosting platform (Minecraft, Rust, Valheim, CS2, Palworld, …). Players pick a game, drag sliders for RAM / vCPU / NVMe storage, choose a region and billing period, see the price live and deploy.
 
-**Phase 1 (this repo):** full frontend + backend with a real database, authentication, orders and a dashboard, but with **simulated provisioning** and **simulated payments**. Real servers (Pterodactyl) and Stripe plug in later without changing the rest of the app.
+Full frontend and backend with a real database: accounts, orders, a billing engine with renewals and dunning, Stripe payments, transactional email and a server panel. **Provisioning is simulated** by a mock provider; real servers (Pterodactyl) plug in behind the same interface without changing the rest of the app. Payments are simulated too until `PAYMENT_PROVIDER=stripe` is set.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Game-server hosting platform (Minecraft, Rust, Valheim, CS2, Palworld, …). Pla
 | Auth       | Auth.js v5 (email + password; Google/Discord ready via env vars)       |
 | ORM / DB   | Prisma 7 (driver adapter) · MySQL / MariaDB                            |
 | Validation | zod                                                                    |
-| Tests      | vitest (pricing engine)                                                |
+| Tests      | vitest: unit + integration against a real MySQL database               |
 
 ## Quick start
 
@@ -84,7 +84,7 @@ src/
     (marketing)/   landing, /games, /games/[slug], /configure
     (auth)/        /login, /register
     (app)/         /dashboard, /dashboard/servers/[id], /dashboard/billing, /account, /admin/*
-  app/api/         REST endpoints (pricing quote, games, servers, power, usage, console, orders, auth)
+  app/api/         REST endpoints (pricing, games, servers and their panel, orders, webhooks, cron, auth)
   components/      UI (landing, configurator, dashboard, admin, auth, layout)
   lib/pricing/     pure pricing engine + tests (integer cents)
   lib/validation/  zod schemas shared by actions and API routes
@@ -118,6 +118,12 @@ Every email goes to the `EmailMessage` outbox first and is delivered through SMT
 **Rate limiting.** Fixed-window counters in the `RateLimit` table (`src/server/security/rate-limit.ts`), so limits hold across instances and restarts: login per address *and* account, sign-up, password reset per address and per mailbox, verification emails, checkout, and coupon lookups (codes are guessable). API responses carry `Retry-After`.
 
 **Audit log.** Every successful admin mutation is recorded with the admin, their address and what changed (**Admin → Audit log**); failed or refused actions are not. The trail survives the deletion of the admin's account.
+
+**Server panel.** Files, console commands, the player list and one-click add-ons all go through `ServerProvider`, so a real backend only has to implement the same methods (the Pterodactyl stub lists the Panel endpoint for each). The mock keeps its state in the database: a virtual file system per server (`ServerFile`, seeded per game with the server's own name and port in its config), and the commands a customer typed with the server's answers (`ConsoleEntry`). Servers created before the file manager existed get their files on first use.
+
+Every path a client sends passes `normalizePath()` (`src/lib/files/path.ts`) before it reaches a provider. It rejects rather than repairs: `..`, absolute and Windows-style paths, backslashes, control characters including a null byte, names with leading or trailing spaces. Console commands and player names are held to a single line and a strict character set, so one request cannot carry a second command. `stop` and `restart` typed into the console go through the power state machine like the buttons do.
+
+**Scheduled tasks.** Restart, backup or a console command, hourly, daily or weekly. Schedules are stored in UTC and the UI converts to and from the customer's time zone, day included (a local Sunday 01:00 can be Saturday in UTC). `computeNextRun()` is pure and always returns a moment after "now", so a task missed during an outage runs once, not once per missed slot. Automatic backups rotate among themselves and never delete a backup the customer made by hand; a scheduled restart does not start a server the customer has stopped. Schedule `GET /api/cron/tasks` every few minutes, with the same `CRON_SECRET` as the billing endpoint.
 
 **Resizing.** Changing RAM, CPU or storage mid-period is priced by `prorate()`
 (`src/lib/pricing/prorate.ts`): only the unused share of the paid period is
@@ -159,7 +165,7 @@ Prisma models, and a unit test fails if one slips through.
 - [x] Coupons
 - [x] Stripe payments (hosted checkout, saved cards, signed webhooks, billing portal)
 - [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
-- [ ] File manager and scheduled tasks
+- [x] Server panel: file manager, console commands, players, one-click mods and plugins, scheduled tasks
 - [x] Email verification, password reset, transactional emails with a development outbox
 - [x] Rate limiting, session revocation and an admin audit log
 
