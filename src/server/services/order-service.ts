@@ -176,15 +176,32 @@ export async function checkout(
   if (order.totalCents === 0) return fulfilOrder(order.id);
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  const result = await getPaymentProvider().startCheckout({
-    orderId: order.id,
-    userId,
-    userEmail: user.email,
-    amountCents: order.totalCents,
-    currency: order.currency,
-    description: `${input.name} (${input.ramGb} GB RAM, ${input.vcpu} vCPU, ${input.storageGb} GB)`,
-    successUrl: urls.successUrl,
-    cancelUrl: urls.cancelUrl,
+  const provider = getPaymentProvider();
+  // The success page needs to know which order to wait for.
+  const successUrl = new URL(urls.successUrl);
+  successUrl.searchParams.set("order", order.id);
+
+  let result;
+  try {
+    result = await provider.startCheckout({
+      orderId: order.id,
+      userId,
+      userEmail: user.email,
+      amountCents: order.totalCents,
+      currency: order.currency,
+      description: `${input.name} (${input.ramGb} GB RAM, ${input.vcpu} vCPU, ${input.storageGb} GB)`,
+      successUrl: successUrl.toString(),
+      cancelUrl: urls.cancelUrl,
+    });
+  } catch (error) {
+    // Do not leave an order behind that nobody can ever pay.
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+    throw error;
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { paymentProvider: provider.name, paymentReference: result.reference },
   });
 
   if (result.kind === "paid") return fulfilOrder(order.id);

@@ -24,6 +24,8 @@ export type BillingCycleReport = {
   cancelled: number;
   suspended: number;
   deleted: number;
+  /** Subscriptions skipped because something unexpected went wrong (see logs). */
+  errors: number;
 };
 
 type Deps = { charge?: ChargeFn };
@@ -130,7 +132,16 @@ async function attemptRenewal(
   const orderId = order.id;
 
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({ where: { id: orderId }, data: { status: "PAID" } });
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "PAID",
+        // Nothing was collected when credit covered the whole period.
+        ...(totalCents > 0
+          ? { paymentProvider: getPaymentProvider().name, paymentReference: result.reference }
+          : {}),
+      },
+    });
     await tx.invoice.updateMany({
       where: { orderId, status: "OPEN" },
       data: { status: "PAID", paidAt: now },
@@ -206,6 +217,18 @@ export async function runBillingCycle(
     cancelled: 0,
     suspended: 0,
     deleted: 0,
+    errors: 0,
+  };
+  // A gateway outage while billing one customer must not stop the run for the
+  // rest, and must not be mistaken for a declined card either: the subscription
+  // is simply picked up again by the next run.
+  const guarded = async (subscriptionId: string, work: () => Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      report.errors += 1;
+      console.error(`Billing cycle failed for subscription ${subscriptionId}`, error);
+    }
   };
   const liveServer = { status: { not: "DELETED" } } satisfies Prisma.ServerWhereInput;
 
@@ -216,32 +239,34 @@ export async function runBillingCycle(
   });
 
   for (const first of due) {
-    if (first.cancelAtPeriodEnd) {
-      await prisma.subscription.update({
-        where: { id: first.id },
-        data: { status: "CANCELLED", cancelAtPeriodEnd: false },
-      });
-      if (first.server.status !== "SUSPENDED") {
-        await suspendForBilling(first.serverId, now, "Subscription ended");
+    await guarded(first.id, async () => {
+      if (first.cancelAtPeriodEnd) {
+        await prisma.subscription.update({
+          where: { id: first.id },
+          data: { status: "CANCELLED", cancelAtPeriodEnd: false },
+        });
+        if (first.server.status !== "SUSPENDED") {
+          await suspendForBilling(first.serverId, now, "Subscription ended");
+        }
+        report.cancelled += 1;
+        return;
       }
-      report.cancelled += 1;
-      continue;
-    }
 
-    let sub = first;
-    for (let i = 0; i < BILLING_POLICY.maxCatchUpPeriods; i += 1) {
-      const result = await attemptRenewal(sub, now, charge);
-      if (!result.paid) {
-        report.failed += 1;
-        break;
+      let sub = first;
+      for (let i = 0; i < BILLING_POLICY.maxCatchUpPeriods; i += 1) {
+        const result = await attemptRenewal(sub, now, charge);
+        if (!result.paid) {
+          report.failed += 1;
+          break;
+        }
+        report.renewed += 1;
+        sub = await prisma.subscription.findUniqueOrThrow({
+          where: { id: sub.id },
+          include: dueInclude,
+        });
+        if (sub.currentPeriodEnd > now) break;
       }
-      report.renewed += 1;
-      sub = await prisma.subscription.findUniqueOrThrow({
-        where: { id: sub.id },
-        include: dueInclude,
-      });
-      if (sub.currentPeriodEnd > now) break;
-    }
+    });
   }
 
   // 2. Unpaid subscriptions: delete, retry, or suspend, in that order.
@@ -251,32 +276,34 @@ export async function runBillingCycle(
   });
 
   for (const sub of pastDue) {
-    const since = sub.pastDueSince ?? now;
-    const unpaidMs = now.getTime() - since.getTime();
+    await guarded(sub.id, async () => {
+      const since = sub.pastDueSince ?? now;
+      const unpaidMs = now.getTime() - since.getTime();
 
-    if (unpaidMs >= BILLING_POLICY.deleteAfterDays * DAY_MS) {
-      await deleteForBilling(sub, now, "Unpaid");
-      report.deleted += 1;
-      continue;
-    }
-
-    const lastAttempt = sub.lastChargeAttemptAt?.getTime() ?? 0;
-    if (now.getTime() - lastAttempt >= BILLING_POLICY.retryEveryHours * HOUR_MS) {
-      const result = await attemptRenewal(sub, now, charge);
-      if (result.paid) {
-        report.renewed += 1;
-        continue;
+      if (unpaidMs >= BILLING_POLICY.deleteAfterDays * DAY_MS) {
+        await deleteForBilling(sub, now, "Unpaid");
+        report.deleted += 1;
+        return;
       }
-      report.failed += 1;
-    }
 
-    if (
-      unpaidMs >= BILLING_POLICY.suspendAfterDays * DAY_MS &&
-      sub.server.status !== "SUSPENDED"
-    ) {
-      await suspendForBilling(sub.serverId, now, "Unpaid");
-      report.suspended += 1;
-    }
+      const lastAttempt = sub.lastChargeAttemptAt?.getTime() ?? 0;
+      if (now.getTime() - lastAttempt >= BILLING_POLICY.retryEveryHours * HOUR_MS) {
+        const result = await attemptRenewal(sub, now, charge);
+        if (result.paid) {
+          report.renewed += 1;
+          return;
+        }
+        report.failed += 1;
+      }
+
+      if (
+        unpaidMs >= BILLING_POLICY.suspendAfterDays * DAY_MS &&
+        sub.server.status !== "SUSPENDED"
+      ) {
+        await suspendForBilling(sub.serverId, now, "Unpaid");
+        report.suspended += 1;
+      }
+    });
   }
 
   // 3. Cancelled subscriptions whose data-retention window is over.
@@ -291,8 +318,10 @@ export async function runBillingCycle(
   });
 
   for (const sub of ended) {
-    await deleteForBilling(sub, now, "Subscription ended");
-    report.deleted += 1;
+    await guarded(sub.id, async () => {
+      await deleteForBilling(sub, now, "Subscription ended");
+      report.deleted += 1;
+    });
   }
 
   return report;

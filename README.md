@@ -55,6 +55,7 @@ Useful scripts:
 | `npm run test:integration` | services + API against the `gigahost_test` database |
 | `npm run typecheck`        | `tsc --noEmit`                                      |
 | `npm run lint`             | eslint                                              |
+| `npm run db:migrate`       | create + apply a migration (fixes table-name casing) |
 | `npm run db:studio`        | Prisma Studio (browse the DB)                       |
 | `npm run db:reset`         | drop, migrate and seed again                        |
 
@@ -106,6 +107,8 @@ prisma/            schema, migrations, seed
 
 Schedule `GET /api/cron/billing` hourly with `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends that header on its own); the endpoint stays closed while the secret is unset. Locally, use **Admin → Billing → Run billing cycle now**.
 
+**Stripe.** Set `PAYMENT_PROVIDER=stripe` with `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (see `.env.example`). Stripe is used as a card processor only: GigaHost's own engine decides what is owed, so there are no Stripe Subscriptions to keep in sync. The first payment is a hosted Checkout Session that also saves the card (`setup_future_usage`); renewals and upgrades are off-session PaymentIntents charged by the billing cycle. A declined card makes a subscription past due, while a gateway outage is rethrown and simply retried by the next run, so nobody is marked past due for Stripe's downtime. The webhook (`/api/webhooks/stripe`) verifies the signature against the raw body and fulfils orders idempotently; the success page also verifies the session with Stripe directly, so checkout works locally even without `stripe listen`. Customers replace their card through Stripe's billing portal.
+
 **Coupons.** Percentage or fixed, with a global cap, a per-customer cap, a minimum order and an expiry, managed under **Admin → Coupons**. A coupon discounts the first invoice only; the subscription renews at the regular price. The seed creates `WELCOME10`.
 
 **Resizing.** Changing RAM, CPU or storage mid-period is priced by `prorate()`
@@ -130,6 +133,12 @@ MySQL strings default to `VARCHAR(191)`, so free-text and JSON columns
 Postgres later is still `provider = "postgresql"`, the `@prisma/adapter-pg`
 adapter in `db.ts`, a new `DATABASE_URL`, and a fresh `prisma migrate dev`.
 
+Create migrations with `npm run db:migrate`, not `prisma migrate dev`. MySQL on
+Windows folds table names to lower case, so a migration generated there says
+``ALTER TABLE `order` `` for a table created as `Order`, which fails on Linux
+where names are case sensitive. The script rewrites them to the casing of the
+Prisma models, and a unit test fails if one slips through.
+
 `docker-compose.yml` starts a MySQL 8.4 container for machines without XAMPP.
 
 ## Roadmap
@@ -140,7 +149,7 @@ adapter in `db.ts`, a new `DATABASE_URL`, and a fresh `prisma migrate dev`.
 - [x] SEO: sitemap, robots, Open Graph images, hreflang alternates
 - [x] Billing cycle: renewals, credit, retries, suspension and deletion for non-payment
 - [x] Coupons
-- [ ] Stripe (a second `PaymentProvider` next to the mock one)
+- [x] Stripe payments (hosted checkout, saved cards, signed webhooks, billing portal)
 - [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
 - [ ] File manager and scheduled tasks
 - [ ] Email verification & password reset

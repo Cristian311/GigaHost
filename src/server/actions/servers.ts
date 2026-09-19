@@ -16,6 +16,7 @@ import { AppError } from "@/server/errors";
 import { validateCoupon } from "@/server/services/coupon-service";
 import { checkout, setCancelAtPeriodEnd } from "@/server/services/order-service";
 import { quote } from "@/server/services/pricing-service";
+import { getPaymentPortalUrl } from "@/server/services/payment-service";
 import { payOutstanding } from "@/server/services/renewal-service";
 import {
   createBackup,
@@ -239,6 +240,19 @@ export async function payOutstandingAction(subscriptionId: string): Promise<Acti
     await payOutstanding(z.string().min(1).parse(subscriptionId), user.id);
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** Link to the gateway-hosted page where the customer replaces their card. */
+export async function openPaymentPortalAction(): Promise<ActionResult<{ url: string }>> {
+  const user = await requireUser();
+  try {
+    const locale = await getLocale();
+    const url = await getPaymentPortalUrl(user.id, `${APP_URL}/${locale}/dashboard/billing`);
+    if (!url) return { ok: false, error: "no_payment_method" };
+    return { ok: true, data: { url } };
   } catch (error) {
     return toActionError(error);
   }

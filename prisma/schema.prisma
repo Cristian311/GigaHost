@@ -121,6 +121,8 @@ model User {
   passwordHash  String?
   role          Role      @default(USER)
   locale        String    @default("en")
+  /// Customer object at the payment gateway; created on first checkout.
+  stripeCustomerId String? @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -327,6 +329,10 @@ model Order {
   /// subtotal - discount - couponDiscount - creditApplied
   totalCents     Int
   currency       String        @default("EUR")
+  /// "mock" | "stripe"; null for orders that needed no payment.
+  paymentProvider  String?
+  /// Gateway id of the payment (Checkout Session or PaymentIntent).
+  paymentReference String?     @unique
   couponId       String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

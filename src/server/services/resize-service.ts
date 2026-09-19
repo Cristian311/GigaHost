@@ -5,8 +5,9 @@ import { prorate, type ProrateResult } from "@/lib/pricing/prorate";
 import { MONTHS_PER_PERIOD } from "@/lib/pricing/types";
 import type { ResizeServerInput } from "@/lib/validation/server";
 import { AppError } from "@/server/errors";
+import { getPaymentProvider, type ChargeFn } from "@/server/payments";
 import { recordEvent } from "./event-service";
-import { nextInvoiceNumber } from "./order-service";
+import { nextInvoiceNumber } from "./invoice-service";
 import { assertMeetsMinimums, getActivePricing, toPricingTable } from "./pricing-service";
 import { getServerForUser, serverInclude } from "./server-service";
 
@@ -118,6 +119,7 @@ export async function resizeServer(
   userId: string,
   input: ResizeServerInput,
   now = new Date(),
+  deps: { charge?: ChargeFn } = {},
 ) {
   const { preview, server } = await buildPreview(serverId, userId, input, now);
 
@@ -133,7 +135,8 @@ export async function resizeServer(
       userId,
       serverId: server.id,
       kind: "RESIZE",
-      status: "PAID",
+      // Settled below: an upgrade only goes through once it has been paid for.
+      status: "PENDING",
       billingPeriod: sub?.billingPeriod ?? "MONTHLY",
       configSnapshot: JSON.stringify({
         from: preview.current,
@@ -150,7 +153,29 @@ export async function resizeServer(
     },
   });
 
+  let payment: { paymentProvider: string; paymentReference: string } | undefined;
+  if (chargeCents > 0) {
+    const charge = deps.charge ?? ((request) => getPaymentProvider().chargeSaved(request));
+    const result = await charge({
+      orderId: order.id,
+      idempotencyKey: `${order.id}:1`,
+      userId,
+      amountCents: chargeCents,
+      currency: preview.currency,
+      description: `${server.name} upgrade`,
+    });
+    if (result.status === "failed") {
+      await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+      throw new AppError("payment_failed", 402, result.reason);
+    }
+    payment = {
+      paymentProvider: getPaymentProvider().name,
+      paymentReference: result.reference,
+    };
+  }
+
   const writes: Prisma.PrismaPromise<unknown>[] = [
+    prisma.order.update({ where: { id: order.id }, data: { status: "PAID", ...payment } }),
     prisma.server.update({
       where: { id: server.id },
       data: { ramGb: input.ramGb, vcpu: input.vcpu, storageGb: input.storageGb },

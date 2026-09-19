@@ -222,7 +222,8 @@
       "coupon_expired": "That coupon code has expired.",
       "coupon_exhausted": "That coupon code has been used up.",
       "coupon_already_used": "You have already used that coupon code.",
-      "coupon_min_order": "Your order is below the minimum for that coupon."
+      "coupon_min_order": "Your order is below the minimum for that coupon.",
+      "payment_failed": "The payment was declined. Please check your payment method."
     },
     "coupon": {
       "label": "Coupon code",
@@ -364,7 +365,8 @@
         "invalid_transition": "The server must be stopped or running to resize it.",
         "server_not_found": "Server not found.",
         "validation": "Please check the values and try again.",
-        "internal_error": "Something went wrong. Please try again."
+        "internal_error": "Something went wrong. Please try again.",
+        "payment_failed": "The upgrade could not be charged to your payment method, so nothing was changed."
       }
     },
     "backups": {
@@ -466,8 +468,10 @@
       "payment_failed": "The payment was declined. Please check your payment method.",
       "nothing_due": "Nothing is owed on this subscription.",
       "subscription_not_found": "Subscription not found.",
-      "internal_error": "Something went wrong. Please try again."
-    }
+      "internal_error": "Something went wrong. Please try again.",
+      "no_payment_method": "You have no saved payment method yet."
+    },
+    "managePaymentMethod": "Manage payment method"
   },
   "account": {
     "title": "Account",
@@ -598,7 +602,7 @@
       "run": "Run billing cycle now",
       "running": "Running…",
       "runHint": "Renews what is due, retries failed charges, suspends and deletes unpaid servers. In production this runs from the scheduler at /api/cron/billing.",
-      "report": "Renewed {renewed} · failed {failed} · cancelled {cancelled} · suspended {suspended} · deleted {deleted}",
+      "report": "Renewed {renewed} · failed {failed} · cancelled {cancelled} · suspended {suspended} · deleted {deleted} · errors {errors}",
       "upcoming": "Renewing in the next 7 days",
       "pastDue": "Unpaid",
       "customer": "Customer",
@@ -652,5 +656,25 @@
       "desc": "An unexpected error occurred. Please try again.",
       "retry": "Try again"
     }
+  },
+  "checkout": {
+    "pending": {
+      "title": "Confirming your payment…",
+      "body": "This usually takes a few seconds. Please keep this page open."
+    },
+    "paid": {
+      "title": "Payment received",
+      "body": "Taking you to your new server…"
+    },
+    "failed": {
+      "title": "The payment did not go through",
+      "body": "You have not been charged. You can configure the server again and retry."
+    },
+    "slow": {
+      "title": "Still waiting for the payment provider",
+      "body": "Your server will appear in the dashboard as soon as the payment is confirmed. You can safely leave this page."
+    },
+    "tryAgain": "Back to the configurator",
+    "goToBilling": "Go to billing"
   }
 }

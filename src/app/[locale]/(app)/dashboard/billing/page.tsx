@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PaymentMethodButton } from "@/components/dashboard/payment-method-button";
 import { SubscriptionActions } from "@/components/dashboard/subscription-actions";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { BILLING_POLICY } from "@/lib/constants";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
+import { isStripeEnabled } from "@/server/payments";
 import {
   listInvoicesForUser,
   listOrdersForUser,
@@ -61,9 +63,15 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
     <>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
-      <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-        {t("previewNotice")}
-      </p>
+      {isStripeEnabled() ? (
+        <div className="mb-6 flex justify-end">
+          <PaymentMethodButton />
+        </div>
+      ) : (
+        <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          {t("previewNotice")}
+        </p>
+      )}
 
       {pastDueCount > 0 ? (
         <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">

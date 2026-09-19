@@ -1,4 +1,7 @@
+import Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { prisma } from "@/lib/db";
+import { createOrder } from "@/server/services/order-service";
 import {
   createCoupon,
   createServerFor,
@@ -65,6 +68,9 @@ const { POST: couponRoute } = await import("@/app/api/pricing/coupon/route");
 const { GET: cronBillingGet, POST: cronBillingPost } = await import(
   "@/app/api/cron/billing/route"
 );
+
+const { POST: stripeWebhookRoute } = await import("@/app/api/webhooks/stripe/route");
+const { GET: checkoutStateRoute } = await import("@/app/api/orders/[id]/checkout/route");
 
 function post(body: unknown) {
   return new Request("http://localhost/api", {
@@ -325,6 +331,111 @@ describe("API route handlers", () => {
 
       expect(res.status).toBe(200);
       expect(await res.json()).toMatchObject({ renewed: 1, failed: 0, deleted: 0 });
+    });
+  });
+  describe("Stripe webhook", () => {
+    const SECRET = "whsec_test_secret";
+    const signer = new Stripe("sk_test_dummy");
+
+    function webhook(payload: string, signature?: string) {
+      return new Request("http://localhost/api/webhooks/stripe", {
+        method: "POST",
+        headers: signature ? { "stripe-signature": signature } : {},
+        body: payload,
+      });
+    }
+    const sign = (payload: string, secret = SECRET) =>
+      signer.webhooks.generateTestHeaderString({ payload, secret });
+
+    function completedEvent(orderId: string) {
+      return JSON.stringify({
+        id: "evt_test_1",
+        object: "event",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_1",
+            object: "checkout.session",
+            payment_status: "paid",
+            client_reference_id: orderId,
+            metadata: { orderId },
+          },
+        },
+      });
+    }
+
+    beforeEach(() => {
+      process.env.STRIPE_SECRET_KEY = "sk_test_dummy";
+      process.env.STRIPE_WEBHOOK_SECRET = SECRET;
+    });
+    afterEach(() => {
+      delete process.env.STRIPE_SECRET_KEY;
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+    });
+
+    it("stays closed while no signing secret is configured", async () => {
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+      const res = await stripeWebhookRoute(webhook("{}", "t=1,v1=abc"));
+      expect(res.status).toBe(503);
+    });
+
+    it("rejects unsigned, forged and tampered payloads", async () => {
+      const user = await createUser();
+      const order = await createOrder(user.id, {
+        name: "Webhook Server",
+        gameSlug: "minecraft-java",
+        ramGb: 4,
+        vcpu: 2,
+        storageGb: 20,
+        regionCode: "eu-ro",
+        billingPeriod: "MONTHLY",
+      });
+      const payload = completedEvent(order.id);
+
+      expect((await stripeWebhookRoute(webhook(payload))).status).toBe(400);
+      expect((await stripeWebhookRoute(webhook(payload, sign(payload, "whsec_wrong")))).status).toBe(400);
+      // Valid signature, but for a different body.
+      const tampered = payload.replace(order.id, "someone-elses-order");
+      expect((await stripeWebhookRoute(webhook(tampered, sign(payload)))).status).toBe(400);
+
+      // None of that created a server.
+      expect(await prisma.server.count({ where: { ownerId: user.id } })).toBe(0);
+    });
+
+    it("fulfils the order for a correctly signed event", async () => {
+      const user = await createUser();
+      auth.userId = user.id;
+      const order = await createOrder(user.id, {
+        name: "Webhook Server",
+        gameSlug: "minecraft-java",
+        ramGb: 4,
+        vcpu: 2,
+        storageGb: 20,
+        regionCode: "eu-ro",
+        billingPeriod: "MONTHLY",
+      });
+      const payload = completedEvent(order.id);
+
+      const pending = await checkoutStateRoute(new Request("http://localhost"), ctx(order.id));
+      expect(await pending.json()).toEqual({ status: "pending" });
+
+      const res = await stripeWebhookRoute(webhook(payload, sign(payload)));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ received: true, outcome: "fulfilled" });
+
+      const state = await checkoutStateRoute(new Request("http://localhost"), ctx(order.id));
+      expect(await state.json()).toEqual({ status: "paid", serverId: expect.any(String) });
+    });
+
+    it("acknowledges an event for an unknown order so Stripe stops retrying", async () => {
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      const payload = completedEvent("does-not-exist");
+
+      const res = await stripeWebhookRoute(webhook(payload, sign(payload)));
+      errorLog.mockRestore();
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ outcome: "rejected", reason: "order_not_found" });
     });
   });
 });

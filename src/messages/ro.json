@@ -222,7 +222,8 @@
       "coupon_expired": "Codul de reducere a expirat.",
       "coupon_exhausted": "Codul de reducere a fost folosit de numărul maxim de ori.",
       "coupon_already_used": "Ai folosit deja acest cod de reducere.",
-      "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cupon."
+      "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cupon.",
+      "payment_failed": "Plata a fost refuzată. Verifică metoda de plată."
     },
     "coupon": {
       "label": "Cod de reducere",
@@ -364,7 +365,8 @@
         "invalid_transition": "Serverul trebuie să fie oprit sau pornit pentru redimensionare.",
         "server_not_found": "Serverul nu a fost găsit.",
         "validation": "Verifică valorile și încearcă din nou.",
-        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou.",
+        "payment_failed": "Upgrade-ul nu a putut fi taxat pe metoda ta de plată, așa că nu s-a schimbat nimic."
       }
     },
     "backups": {
@@ -466,8 +468,10 @@
       "payment_failed": "Plata a fost refuzată. Verifică metoda de plată.",
       "nothing_due": "Nu ai nimic de plată pentru acest abonament.",
       "subscription_not_found": "Abonamentul nu a fost găsit.",
-      "internal_error": "Ceva nu a mers. Încearcă din nou."
-    }
+      "internal_error": "Ceva nu a mers. Încearcă din nou.",
+      "no_payment_method": "Nu ai încă o metodă de plată salvată."
+    },
+    "managePaymentMethod": "Gestionează metoda de plată"
   },
   "account": {
     "title": "Cont",
@@ -598,7 +602,7 @@
       "run": "Rulează ciclul de facturare acum",
       "running": "Rulează…",
       "runHint": "Reînnoiește ce este scadent, reîncearcă plățile eșuate, suspendă și șterge serverele neplătite. În producție rulează din planificator, la /api/cron/billing.",
-      "report": "Reînnoite {renewed} · eșuate {failed} · anulate {cancelled} · suspendate {suspended} · șterse {deleted}",
+      "report": "Reînnoite {renewed} · eșuate {failed} · anulate {cancelled} · suspendate {suspended} · șterse {deleted} · erori {errors}",
       "upcoming": "Se reînnoiesc în următoarele 7 zile",
       "pastDue": "Neplătite",
       "customer": "Client",
@@ -652,5 +656,25 @@
       "desc": "A apărut o eroare neașteptată. Te rugăm să încerci din nou.",
       "retry": "Încearcă din nou"
     }
+  },
+  "checkout": {
+    "pending": {
+      "title": "Confirmăm plata…",
+      "body": "De obicei durează câteva secunde. Te rugăm să lași pagina deschisă."
+    },
+    "paid": {
+      "title": "Plata a fost primită",
+      "body": "Te ducem la noul tău server…"
+    },
+    "failed": {
+      "title": "Plata nu a reușit",
+      "body": "Nu ai fost taxat. Poți configura din nou serverul și reîncerca."
+    },
+    "slow": {
+      "title": "Încă așteptăm procesatorul de plăți",
+      "body": "Serverul va apărea în panou imediat ce plata este confirmată. Poți părăsi pagina fără grijă."
+    },
+    "tryAgain": "Înapoi la configurator",
+    "goToBilling": "Mergi la facturare"
   }
 }
