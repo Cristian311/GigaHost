@@ -1,10 +1,10 @@
 // GigaHost data model.
 //
-// Local development runs on SQLite (zero setup). The schema deliberately avoids
-// Postgres-only column types (arrays, native enums with @db attributes) so that
-// switching to PostgreSQL for production is a one-line change:
-//   datasource db { provider = "postgresql" }
-// followed by a fresh `prisma migrate dev`.
+// Runs on MySQL / MariaDB (the XAMPP instance in development). Free-text and
+// JSON columns are declared @db.Text because MySQL strings default to
+// VARCHAR(191); @db.Text also maps cleanly to PostgreSQL `text`, so switching
+// to `provider = "postgresql"` stays a one-line change followed by a fresh
+// `prisma migrate dev`.
 
 generator client {
   provider = "prisma-client"
@@ -12,7 +12,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime?
-  image         String?
+  image         String?   @db.Text
   passwordHash  String?
   role          Role      @default(USER)
   locale        String    @default("en")
@@ -120,12 +120,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String?  @db.Text
   session_state     String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -164,7 +164,7 @@ model Game {
   /// Short tagline shown on cards.
   tagline           String
   /// Longer description shown on the game detail page.
-  description       String
+  description       String  @db.Text
   /// Path under /public (e.g. /games/minecraft.svg) or an absolute URL.
   image             String
   /// Accent colour used for gradients on cards (hex).
@@ -174,9 +174,9 @@ model Game {
   minCpu            Int     @default(1)
   minStorageGb      Int     @default(10)
   /// JSON-encoded string[] of supported versions.
-  versions          String  @default("[]")
+  versions          String  @default("[]") @db.VarChar(1024)
   available         Boolean @default(true)
-  unavailableReason String?
+  unavailableReason String? @db.Text
   sortOrder         Int     @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -274,9 +274,9 @@ model ServerEvent {
   id        String          @id @default(cuid())
   serverId  String
   type      ServerEventType
-  message   String?
+  message   String?         @db.Text
   /// JSON payload with extra details (e.g. old/new resources).
-  meta      String?
+  meta      String?         @db.Text
   createdAt DateTime        @default(now())
 
   server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
@@ -296,7 +296,7 @@ model Order {
   status         OrderStatus   @default(PENDING)
   billingPeriod  BillingPeriod
   /// JSON snapshot of the configuration at order time.
-  configSnapshot String
+  configSnapshot String        @db.Text
   subtotalCents  Int
   discountCents  Int
   totalCents     Int

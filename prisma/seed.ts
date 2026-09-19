@@ -1,3 +1,5 @@
+// Standalone script: Next.js is not loading .env for us here.
+import "dotenv/config";
 import { hash } from "bcryptjs";
 import type { PrismaClient } from "../src/generated/prisma/client";
 

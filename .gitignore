@@ -34,13 +34,8 @@ yarn-error.log*
 .env*
 !.env.example
 
-# database & generated prisma client
-*.db
-*.db-journal
+# generated prisma client
 /src/generated/
-
-# test artifacts
-/tests/.tmp/
 
 # vercel
 .vercel

@@ -13,21 +13,36 @@ Game-server hosting platform (Minecraft, Rust, Valheim, CS2, Palworld, …). Pla
 | UI         | Tailwind CSS v4, shadcn/ui (Base UI), lucide-react, motion, recharts   |
 | i18n       | next-intl (`/en`, `/ro`)                                                |
 | Auth       | Auth.js v5 (email + password; Google/Discord ready via env vars)       |
-| ORM / DB   | Prisma 7 · SQLite for local dev · PostgreSQL for production            |
+| ORM / DB   | Prisma 7 (driver adapter) · MySQL / MariaDB                            |
 | Validation | zod                                                                    |
 | Tests      | vitest (pricing engine)                                                |
 
 ## Quick start
 
+You need a running MySQL or MariaDB. On Windows the one bundled with XAMPP works
+as is — start **MySQL** in the XAMPP control panel; its `root` account has no
+password, which is what `.env.example` assumes.
+
+Create the two databases once (phpMyAdmin, or the CLI below):
+
+```sql
+CREATE DATABASE gigahost      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE gigahost_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
 ```bash
 npm install                 # also runs `prisma generate`
-cp .env.example .env        # defaults work out of the box (SQLite)
-npx prisma migrate dev      # creates dev.db and applies migrations
+cp .env.example .env        # adjust DATABASE_URL if MySQL is not on localhost:3306
+npx prisma migrate dev      # creates the tables
 npm run db:seed             # games, regions, pricing, admin user
 npm run dev                 # http://localhost:3000
 ```
 
 Admin login after seeding: `admin@gigahost.local` / `admin1234`.
+
+The second database, `gigahost_test`, is only used by the integration tests,
+which drop and rebuild it on every run. Browse the real data in phpMyAdmin
+(`http://localhost/phpmyadmin`) or with `npm run db:studio`.
 
 Useful scripts:
 
@@ -37,7 +52,7 @@ Useful scripts:
 | `npm run build`            | production build                                    |
 | `npm test`                 | all tests (unit + integration)                      |
 | `npm run test:unit`        | pure-function tests only (pricing, proration)       |
-| `npm run test:integration` | services + API against a throwaway SQLite database  |
+| `npm run test:integration` | services + API against the `gigahost_test` database |
 | `npm run typecheck`        | `tsc --noEmit`                                      |
 | `npm run lint`             | eslint                                              |
 | `npm run db:studio`        | Prisma Studio (browse the DB)                       |
@@ -46,11 +61,15 @@ Useful scripts:
 ## Tests
 
 `npm test` runs two projects. **unit** covers the pure pricing and proration
-engines. **integration** spins up a disposable SQLite database in `tests/.tmp/`,
+engines. **integration** drops and recreates the `gigahost_test` database,
 applies the schema, seeds the catalog and then exercises the real services and
 route handlers: checkout, the server state machine, resizing with proration,
 backups, the activity log, subscriptions, admin actions and the SEO routes.
 Nothing is mocked except the session in `tests/integration/api.test.ts`.
+
+The test database is taken from `TEST_DATABASE_URL` and the setup refuses to run
+if it equals `DATABASE_URL`, so the development data can never be dropped by a
+test run.
 
 Time-based behaviour (installing, starting, backups completing) is tested by
 moving `statusChangedAt` into the past rather than waiting, so the suite runs in
@@ -92,13 +111,20 @@ accumulate as `Subscription.creditCents` for the next renewal.
 (`src/server/services/event-service.ts`): creation, the lazy state transitions,
 restarts, resizes, backup operations, suspension and deletion.
 
-## Switching to PostgreSQL
+## Database notes
 
-1. `docker compose up -d` (or any Postgres instance)
-2. In `prisma/schema.prisma` change `provider = "sqlite"` to `provider = "postgresql"`
-3. In `src/lib/db.ts` swap `PrismaBetterSqlite3` for `PrismaPg` from `@prisma/adapter-pg` (already installed)
-4. Set `DATABASE_URL="postgresql://gigahost:gigahost@localhost:5432/gigahost"`
-5. Delete `prisma/migrations` and run `npx prisma migrate dev --name init`, then `npm run db:seed`
+Prisma 7 talks to MySQL through a driver adapter. The Prisma CLI wants a
+`mysql://` URL while the underlying driver only parses `mariadb://`, so
+[db.ts](src/lib/db.ts) turns the single `DATABASE_URL` into pool options — one
+setting in `.env`, both halves agree.
+
+MySQL strings default to `VARCHAR(191)`, so free-text and JSON columns
+(descriptions, `configSnapshot`, event `meta`, OAuth tokens) are declared
+`@db.Text` in the schema. Those map to `text` on PostgreSQL too, so moving to
+Postgres later is still `provider = "postgresql"`, the `@prisma/adapter-pg`
+adapter in `db.ts`, a new `DATABASE_URL`, and a fresh `prisma migrate dev`.
+
+`docker-compose.yml` starts a MySQL 8.4 container for machines without XAMPP.
 
 ## Roadmap
 

@@ -9,6 +9,9 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // vitest.config.mts imports tests/setup/env.mts by its real extension, which
+    // is what Vite's native config loader expects.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

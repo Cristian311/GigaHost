@@ -1,16 +1,21 @@
+# Optional: a MySQL instance for machines without XAMPP.
+# Development normally uses the MariaDB that ships with XAMPP, in which case
+# this file is not needed — just create the databases and point DATABASE_URL at
+# them (see README).
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: gigahost-postgres
+  mysql:
+    image: mysql:8.4
+    container_name: gigahost-mysql
     restart: unless-stopped
     environment:
-      POSTGRES_USER: gigahost
-      POSTGRES_PASSWORD: gigahost
-      POSTGRES_DB: gigahost
+      MYSQL_ROOT_PASSWORD: gigahost
+      MYSQL_DATABASE: gigahost
+      MYSQL_USER: gigahost
+      MYSQL_PASSWORD: gigahost
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - gigahost_pgdata:/var/lib/postgresql/data
+      - gigahost_mysqldata:/var/lib/mysql
 
 volumes:
-  gigahost_pgdata:
+  gigahost_mysqldata:

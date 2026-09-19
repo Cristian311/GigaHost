@@ -1,26 +1,36 @@
-import path from "node:path";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 /**
- * Resolves the SQLite URL so that the app and the Prisma CLI agree on the
- * database file. `file:./dev.db` becomes an absolute path rooted at the
- * project directory (where prisma.config.ts lives).
+ * The Prisma CLI needs a `mysql://` URL, while the MariaDB driver only parses
+ * `mariadb://` connection strings. Keeping a single DATABASE_URL in .env and
+ * converting it here means both agree on the same database.
  */
-function resolveSqliteUrl(): string {
-  const raw = process.env.DATABASE_URL ?? "file:./dev.db";
-  if (raw === "file::memory:" || raw === ":memory:") return ":memory:";
-  const file = raw.replace(/^file:/, "");
-  if (path.isAbsolute(file)) return file;
-  // turbopackIgnore: the path is only known at runtime; do not trace the whole project.
-  return path.join(/* turbopackIgnore: true */ process.cwd(), file);
+function poolConfig(url: string) {
+  const parsed = new URL(url);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+  if (!database) {
+    throw new Error(`DATABASE_URL is missing a database name: ${parsed.origin}/`);
+  }
+  return {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 3306,
+    user: decodeURIComponent(parsed.username),
+    // XAMPP's root account has no password by default, hence the empty string.
+    password: decodeURIComponent(parsed.password),
+    database,
+    connectionLimit: Number(parsed.searchParams.get("connection_limit") ?? 5),
+    // Dates are handled by Prisma; the driver must not turn them into strings.
+    dateStrings: false,
+  };
 }
 
 function createClient() {
-  const adapter = new PrismaBetterSqlite3({ url: resolveSqliteUrl() });
-  return new PrismaClient({ adapter });
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set");
+  return new PrismaClient({ adapter: new PrismaMariaDb(poolConfig(url)) });
 }
 
 export const prisma = globalForPrisma.prisma ?? createClient();
