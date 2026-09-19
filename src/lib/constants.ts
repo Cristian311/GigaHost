@@ -7,6 +7,12 @@ export const RESOURCE_LIMITS = {
 
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "GigaHost";
 
+/** Public origin without a trailing slash, for absolute links (emails, gateway redirects). */
+export const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
+
 /** Mock provider timings (ms). Transitions are computed lazily on read. */
 export const MOCK_TIMINGS = {
   installing: 10_000,
@@ -17,3 +23,15 @@ export const MOCK_TIMINGS = {
 
 /** Backups kept per server before the oldest must be removed. */
 export const MAX_BACKUPS_PER_SERVER = 5;
+
+/** What happens to a subscription whose renewal could not be charged. */
+export const BILLING_POLICY = {
+  /** Days a subscription may stay unpaid before its server is suspended. */
+  suspendAfterDays: 3,
+  /** Days unpaid (or after a cancelled period ended) before the server is deleted. */
+  deleteAfterDays: 14,
+  /** Minimum gap between automatic retries of a failed charge. */
+  retryEveryHours: 24,
+  /** Cap on periods billed in one run for a subscription the scheduler missed. */
+  maxCatchUpPeriods: 12,
+} as const;

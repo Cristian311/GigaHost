@@ -13,6 +13,8 @@ export function AdminNav() {
     { href: "/admin/games", label: t("games") },
     { href: "/admin/regions", label: t("regions") },
     { href: "/admin/pricing", label: t("pricing") },
+    { href: "/admin/coupons", label: t("coupons") },
+    { href: "/admin/billing", label: t("billing") },
     { href: "/admin/users", label: t("users") },
   ];
 

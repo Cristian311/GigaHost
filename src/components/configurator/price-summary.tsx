@@ -7,16 +7,20 @@ import { cn } from "@/lib/utils";
 
 export function PriceSummary({
   breakdown,
+  coupon,
   className,
   children,
 }: {
   breakdown: PriceBreakdown;
+  /** Server-validated coupon; only ever discounts the first invoice. */
+  coupon?: { code: string; discountCents: number } | null;
   className?: string;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("configure");
   const locale = useLocale();
   const money = (cents: number) => formatMoney(cents, breakdown.currency, locale);
+  const totalCents = breakdown.totalCents - (coupon?.discountCents ?? 0);
 
   const rows: Array<{ label: string; value: string; muted?: boolean }> = [
     { label: t("base"), value: money(breakdown.baseCents), muted: true },
@@ -61,15 +65,24 @@ export function PriceSummary({
             </div>
           </>
         ) : null}
+        {coupon ? (
+          <div className="flex items-center justify-between text-success">
+            <dt>{t("coupon.applied", { code: coupon.code })}</dt>
+            <dd className="tabular-nums">−{money(coupon.discountCents)}</dd>
+          </div>
+        ) : null}
       </dl>
 
       <div className="mt-5 rounded-xl bg-primary/10 p-4">
         <p className="text-xs text-muted-foreground">{t("total")}</p>
-        <p className="font-heading text-3xl font-bold tabular-nums">{money(breakdown.totalCents)}</p>
+        <p className="font-heading text-3xl font-bold tabular-nums">{money(totalCents)}</p>
         {breakdown.months > 1 ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {t("effective")}: {money(breakdown.effectiveMonthlyCents)}
           </p>
+        ) : null}
+        {coupon ? (
+          <p className="mt-1 text-xs text-muted-foreground">{t("coupon.firstInvoiceOnly")}</p>
         ) : null}
       </div>
 

@@ -1,104 +1,203 @@
 import { prisma } from "@/lib/db";
 import { addMonths } from "@/lib/dates";
-import { MONTHS_PER_PERIOD } from "@/lib/pricing/types";
+import { MONTHS_PER_PERIOD, type PriceBreakdown } from "@/lib/pricing/types";
 import type { CreateServerInput } from "@/lib/validation/server";
+import { AppError } from "@/server/errors";
+import { getPaymentProvider } from "@/server/payments";
+import { redeemCoupon, validateCoupon } from "./coupon-service";
+import { nextInvoiceNumber } from "./invoice-service";
 import { quote } from "./pricing-service";
 import { provisionServer } from "./server-service";
 
-export async function nextInvoiceNumber(): Promise<string> {
-  const year = new Date().getUTCFullYear();
-  const count = await prisma.invoice.count({
-    where: { number: { startsWith: `GH-${year}-` } },
-  });
-  return `GH-${year}-${String(count + 1).padStart(6, "0")}`;
-}
+/** Everything needed to provision the server once the order is paid. */
+export type OrderSnapshot = {
+  name: string;
+  gameSlug: string;
+  gameName: string;
+  gameVersion: string | null;
+  regionCode: string;
+  regionName: string;
+  ramGb: number;
+  vcpu: number;
+  storageGb: number;
+  breakdown: PriceBreakdown;
+  couponCode?: string;
+};
+
+export type FulfilledOrder = { orderId: string; serverId: string };
+export type CheckoutOutcome = FulfilledOrder | { orderId: string; redirectUrl: string };
+
+export { nextInvoiceNumber };
 
 /**
- * Simulated checkout (Phase 1). Recomputes the price server-side, records the
- * order as paid, issues an invoice, provisions the server and opens a
- * subscription. When Stripe lands, the "mark as paid" part moves to the
- * webhook handler and everything else stays the same.
+ * Recomputes the price server-side (the client total is never trusted),
+ * validates the coupon and stores a PENDING order.
  */
-export async function checkoutMock(userId: string, input: CreateServerInput) {
+export async function createOrder(userId: string, input: CreateServerInput) {
   const { breakdown, game, region } = await quote(input);
 
-  const order = await prisma.order.create({
+  const applied = input.couponCode
+    ? await validateCoupon(input.couponCode, breakdown.totalCents, userId)
+    : null;
+  const couponDiscountCents = applied?.discountCents ?? 0;
+
+  const snapshot: OrderSnapshot = {
+    name: input.name,
+    gameSlug: game.slug,
+    gameName: game.name,
+    gameVersion: input.gameVersion ?? null,
+    regionCode: region.code,
+    regionName: region.name,
+    ramGb: input.ramGb,
+    vcpu: input.vcpu,
+    storageGb: input.storageGb,
+    breakdown,
+    ...(applied ? { couponCode: applied.coupon.code } : {}),
+  };
+
+  return prisma.order.create({
     data: {
       userId,
       status: "PENDING",
       billingPeriod: input.billingPeriod,
-      configSnapshot: JSON.stringify({
-        name: input.name,
-        gameSlug: game.slug,
-        gameName: game.name,
-        gameVersion: input.gameVersion ?? null,
-        regionCode: region.code,
-        regionName: region.name,
-        ramGb: input.ramGb,
-        vcpu: input.vcpu,
-        storageGb: input.storageGb,
-        breakdown,
-      }),
+      configSnapshot: JSON.stringify(snapshot),
       subtotalCents: breakdown.subtotalCents,
       discountCents: breakdown.discountCents,
-      totalCents: breakdown.totalCents,
+      couponDiscountCents,
+      totalCents: breakdown.totalCents - couponDiscountCents,
       currency: breakdown.currency,
+      couponId: applied?.coupon.id ?? null,
     },
   });
+}
 
-  // --- simulated payment gateway --------------------------------------------
-  const paidAt = new Date();
-  const invoiceNumber = await nextInvoiceNumber();
-
-  const server = await provisionServer({
-    userId,
-    name: input.name,
-    gameId: game.id,
-    gameSlug: game.slug,
-    gameVersion: input.gameVersion,
-    regionId: region.id,
-    regionCode: region.code,
-    ramGb: input.ramGb,
-    vcpu: input.vcpu,
-    storageGb: input.storageGb,
+/**
+ * Turns a paid order into a server, an invoice and a subscription. Safe to call
+ * more than once for the same order (gateways redeliver webhooks): only the
+ * call that flips the order from PENDING to PAID does the work.
+ */
+export async function fulfilOrder(
+  orderId: string,
+  paidAt: Date = new Date(),
+): Promise<FulfilledOrder> {
+  const claimed = await prisma.order.updateMany({
+    where: { id: orderId, status: "PENDING", kind: "NEW" },
+    data: { status: "PAID" },
   });
 
-  const months = MONTHS_PER_PERIOD[input.billingPeriod];
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.kind !== "NEW") throw new AppError("order_not_found", 404);
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: order.id },
-      data: { status: "PAID", serverId: server.id },
-    }),
-    prisma.invoice.create({
+  if (claimed.count === 0) {
+    if (order.status === "PAID" && order.serverId) {
+      return { orderId: order.id, serverId: order.serverId };
+    }
+    throw new AppError("order_not_found", 409, `Order is ${order.status}.`);
+  }
+
+  const snapshot = JSON.parse(order.configSnapshot) as OrderSnapshot;
+  const [game, region] = await Promise.all([
+    prisma.game.findUnique({ where: { slug: snapshot.gameSlug } }),
+    prisma.region.findUnique({ where: { code: snapshot.regionCode } }),
+  ]);
+  if (!game) throw new AppError("game_not_found", 404);
+  if (!region) throw new AppError("region_not_found", 404);
+
+  const server = await provisionServer({
+    userId: order.userId,
+    name: snapshot.name,
+    gameId: game.id,
+    gameSlug: game.slug,
+    gameVersion: snapshot.gameVersion,
+    regionId: region.id,
+    regionCode: region.code,
+    ramGb: snapshot.ramGb,
+    vcpu: snapshot.vcpu,
+    storageGb: snapshot.storageGb,
+  });
+
+  const invoiceNumber = await nextInvoiceNumber();
+  const months = MONTHS_PER_PERIOD[order.billingPeriod];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: order.id }, data: { serverId: server.id } });
+    await tx.invoice.create({
       data: {
         number: invoiceNumber,
-        userId,
+        userId: order.userId,
         orderId: order.id,
         status: "PAID",
-        amountCents: breakdown.totalCents,
-        currency: breakdown.currency,
+        amountCents: order.totalCents,
+        currency: order.currency,
         issuedAt: paidAt,
         dueAt: paidAt,
         paidAt,
       },
-    }),
-    prisma.subscription.create({
+    });
+    await tx.subscription.create({
       data: {
-        userId,
+        userId: order.userId,
         serverId: server.id,
         orderId: order.id,
         status: "ACTIVE",
-        billingPeriod: input.billingPeriod,
-        amountCents: breakdown.totalCents,
-        currency: breakdown.currency,
+        billingPeriod: order.billingPeriod,
+        // Renewals are billed at the regular price: a coupon only ever
+        // discounts the first invoice.
+        amountCents: snapshot.breakdown.totalCents,
+        currency: order.currency,
         currentPeriodStart: paidAt,
         currentPeriodEnd: addMonths(paidAt, months),
       },
-    }),
-  ]);
+    });
+    if (order.couponId) {
+      await redeemCoupon(tx, {
+        couponId: order.couponId,
+        userId: order.userId,
+        orderId: order.id,
+        amountCents: order.couponDiscountCents,
+      });
+    }
+  });
 
   return { orderId: order.id, serverId: server.id };
+}
+
+/**
+ * Customer-facing checkout. With the mock gateway (or a total of zero) the
+ * order is fulfilled on the spot; a hosted gateway returns a URL to redirect
+ * to, and its webhook calls `fulfilOrder` once the payment went through.
+ */
+export async function checkout(
+  userId: string,
+  input: CreateServerInput,
+  urls: { successUrl: string; cancelUrl: string },
+): Promise<CheckoutOutcome> {
+  const order = await createOrder(userId, input);
+  if (order.totalCents === 0) return fulfilOrder(order.id);
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const result = await getPaymentProvider().startCheckout({
+    orderId: order.id,
+    userId,
+    userEmail: user.email,
+    amountCents: order.totalCents,
+    currency: order.currency,
+    description: `${input.name} (${input.ramGb} GB RAM, ${input.vcpu} vCPU, ${input.storageGb} GB)`,
+    successUrl: urls.successUrl,
+    cancelUrl: urls.cancelUrl,
+  });
+
+  if (result.kind === "paid") return fulfilOrder(order.id);
+  return { orderId: order.id, redirectUrl: result.url };
+}
+
+/** Creates and immediately fulfils an order, bypassing the gateway. */
+export async function checkoutMock(
+  userId: string,
+  input: CreateServerInput,
+): Promise<FulfilledOrder> {
+  const order = await createOrder(userId, input);
+  return fulfilOrder(order.id);
 }
 
 export async function listOrdersForUser(userId: string) {

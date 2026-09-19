@@ -35,6 +35,12 @@ export async function requireAdmin() {
   return user;
 }
 
+/** For public endpoints that behave slightly better when they know who is asking. */
+export async function getOptionalUser() {
+  const session = await auth();
+  return session?.user?.id ? session.user : null;
+}
+
 /** For Route Handlers: throws instead of redirecting. */
 export async function getApiUser() {
   const session = await auth();

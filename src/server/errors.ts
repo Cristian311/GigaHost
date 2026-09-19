@@ -11,6 +11,16 @@ export type AppErrorCode =
   | "no_change"
   | "backup_limit"
   | "backup_not_found"
+  | "coupon_not_found"
+  | "coupon_expired"
+  | "coupon_exhausted"
+  | "coupon_already_used"
+  | "coupon_min_order"
+  | "coupon_code_taken"
+  | "order_not_found"
+  | "subscription_not_found"
+  | "nothing_due"
+  | "payment_failed"
   | "not_found"
   | "validation";
 

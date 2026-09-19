@@ -217,7 +217,28 @@
       "region_not_found": "Please choose a region.",
       "below_minimum": "The configuration is below the game's minimum requirements.",
       "validation": "Please check the form and try again.",
-      "internal_error": "Something went wrong. Please try again."
+      "internal_error": "Something went wrong. Please try again.",
+      "coupon_not_found": "That coupon code does not exist.",
+      "coupon_expired": "That coupon code has expired.",
+      "coupon_exhausted": "That coupon code has been used up.",
+      "coupon_already_used": "You have already used that coupon code.",
+      "coupon_min_order": "Your order is below the minimum for that coupon."
+    },
+    "coupon": {
+      "label": "Coupon code",
+      "placeholder": "e.g. WELCOME20",
+      "apply": "Apply",
+      "remove": "Remove",
+      "applied": "Coupon {code}",
+      "firstInvoiceOnly": "Applies to the first invoice. Renewals are billed at the regular price.",
+      "errors": {
+        "coupon_not_found": "That code does not exist.",
+        "coupon_expired": "That code has expired.",
+        "coupon_exhausted": "That code has been used up.",
+        "coupon_already_used": "You have already used that code.",
+        "coupon_min_order": "Your order is below the minimum for that code.",
+        "internal_error": "Could not check the code. Please try again."
+      }
     }
   },
   "auth": {
@@ -391,7 +412,9 @@
         "SUSPENDED": "Server suspended",
         "UNSUSPENDED": "Server reactivated",
         "DELETED": "Server deleted",
-        "ERROR": "Error"
+        "ERROR": "Error",
+        "RENEWED": "Subscription renewed",
+        "PAYMENT_FAILED": "Payment failed"
       }
     }
   },
@@ -424,6 +447,26 @@
       "VOID": "Void",
       "PENDING": "Pending",
       "FAILED": "Failed"
+    },
+    "credit": "Credit: {amount}",
+    "creditHint": "Deducted from your next renewal.",
+    "payNow": "Pay now",
+    "paying": "Paying…",
+    "paid": "Payment received. Thank you!",
+    "pastDueTitle": "Payment failed",
+    "pastDueBody": "We could not renew {count, plural, one {# subscription} other {# subscriptions}}. Unpaid servers are suspended after {suspendDays} days and deleted after {deleteDays} days.",
+    "endsOn": "Ends on",
+    "kinds": {
+      "NEW": "New server",
+      "RESIZE": "Resource change",
+      "RENEWAL": "Renewal"
+    },
+    "type": "Type",
+    "errors": {
+      "payment_failed": "The payment was declined. Please check your payment method.",
+      "nothing_due": "Nothing is owed on this subscription.",
+      "subscription_not_found": "Subscription not found.",
+      "internal_error": "Something went wrong. Please try again."
     }
   },
   "account": {
@@ -459,7 +502,9 @@
       "regions": "Regions",
       "servers": "Servers",
       "pricing": "Pricing",
-      "users": "Users"
+      "users": "Users",
+      "billing": "Billing",
+      "coupons": "Coupons"
     },
     "servers": {
       "title": "All servers",
@@ -545,6 +590,55 @@
       "makeAdmin": "Make admin",
       "makeUser": "Make user",
       "cannotDemoteSelf": "You cannot remove your own admin role."
+    },
+    "billing": {
+      "activeSubscriptions": "Active subscriptions",
+      "mrr": "Monthly recurring revenue",
+      "pastDueCount": "Past due",
+      "run": "Run billing cycle now",
+      "running": "Running…",
+      "runHint": "Renews what is due, retries failed charges, suspends and deletes unpaid servers. In production this runs from the scheduler at /api/cron/billing.",
+      "report": "Renewed {renewed} · failed {failed} · cancelled {cancelled} · suspended {suspended} · deleted {deleted}",
+      "upcoming": "Renewing in the next 7 days",
+      "pastDue": "Unpaid",
+      "customer": "Customer",
+      "server": "Server",
+      "amount": "Amount",
+      "renewsOn": "Renews on",
+      "unpaidSince": "Unpaid since",
+      "attempts": "Attempts",
+      "willCancel": "will cancel",
+      "empty": "Nothing here."
+    },
+    "coupons": {
+      "add": "New coupon",
+      "edit": "Edit coupon",
+      "code": "Code",
+      "kind": "Type",
+      "kinds": {
+        "PERCENT": "Percentage",
+        "FIXED": "Fixed amount"
+      },
+      "value": "Value",
+      "valuePercent": "Percent off",
+      "valueFixed": "Amount off (cents)",
+      "redemptions": "Used",
+      "unlimited": "unlimited",
+      "maxRedemptions": "Max uses (empty = unlimited)",
+      "perUserLimit": "Uses per customer",
+      "minOrder": "Minimum order (cents)",
+      "expiresAt": "Expires",
+      "never": "never",
+      "active": "Active",
+      "saved": "Coupon saved.",
+      "deleteConfirm": "Delete this coupon? Coupons that were already used are only deactivated.",
+      "delete": "Delete",
+      "empty": "No coupons yet.",
+      "errors": {
+        "coupon_code_taken": "A coupon with that code already exists.",
+        "validation": "Please check the form.",
+        "internal_error": "Something went wrong."
+      }
     }
   },
   "errors": {

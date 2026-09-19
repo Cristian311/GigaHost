@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
+import { BILLING_POLICY } from "@/lib/constants";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
 import {
@@ -54,6 +55,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
   ]);
 
   const date = (d: Date) => format.dateTime(d, { dateStyle: "medium" });
+  const pastDueCount = subscriptions.filter((sub) => sub.status === "PAST_DUE").length;
 
   return (
     <>
@@ -62,6 +64,19 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
       <p className="mb-6 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
         {t("previewNotice")}
       </p>
+
+      {pastDueCount > 0 ? (
+        <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+          <p className="font-semibold text-destructive">{t("pastDueTitle")}</p>
+          <p className="mt-1 text-muted-foreground">
+            {t("pastDueBody", {
+              count: pastDueCount,
+              suspendDays: BILLING_POLICY.suspendAfterDays,
+              deleteDays: BILLING_POLICY.deleteAfterDays,
+            })}
+          </p>
+        </div>
+      ) : null}
 
       <Section title={t("subscriptions")}>
         {subscriptions.length === 0 ? (
@@ -93,6 +108,13 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                   <TableCell>{tp(sub.billingPeriod)}</TableCell>
                   <TableCell className="tabular-nums">
                     {formatMoney(sub.amountCents, sub.currency, currentLocale)}
+                    {sub.creditCents > 0 ? (
+                      <p className="text-xs text-success" title={t("creditHint")}>
+                        {t("credit", {
+                          amount: formatMoney(sub.creditCents, sub.currency, currentLocale),
+                        })}
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     {date(sub.currentPeriodEnd)}
@@ -108,6 +130,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                       <SubscriptionActions
                         subscriptionId={sub.id}
                         cancelAtPeriodEnd={sub.cancelAtPeriodEnd}
+                        pastDue={sub.status === "PAST_DUE"}
                       />
                     ) : null}
                   </TableCell>
@@ -157,6 +180,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
             <TableHeader>
               <TableRow>
                 <TableHead>{t("date")}</TableHead>
+                <TableHead>{t("type")}</TableHead>
                 <TableHead>{t("server")}</TableHead>
                 <TableHead>{t("period")}</TableHead>
                 <TableHead>{t("amount")}</TableHead>
@@ -167,6 +191,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
               {orders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>{date(order.createdAt)}</TableCell>
+                  <TableCell>{t(`kinds.${order.kind}`)}</TableCell>
                   <TableCell>{order.server?.name ?? "—"}</TableCell>
                   <TableCell>{tp(order.billingPeriod)}</TableCell>
                   <TableCell className="tabular-nums">

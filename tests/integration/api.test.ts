@@ -1,5 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createServerFor, createUser, resetData, setStatus } from "../setup/db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  createCoupon,
+  createServerFor,
+  createUser,
+  endPeriod,
+  resetData,
+  setStatus,
+} from "../setup/db";
 
 // The route handlers read the session through these helpers. The module is
 // replaced wholesale (rather than spied on) because the real one pulls in
@@ -27,6 +34,7 @@ vi.mock("@/server/auth-guard", () => {
   return {
     UnauthorizedError,
     ForbiddenError,
+    getOptionalUser: async () => (auth.userId ? currentUser() : null),
     getApiUser: async () => currentUser(),
     getApiAdmin: async () => {
       throw new ForbiddenError();
@@ -51,6 +59,11 @@ const { POST: resizeRoute } = await import("@/app/api/servers/[id]/resize/route"
 const { GET: eventsRoute } = await import("@/app/api/servers/[id]/events/route");
 const { GET: listBackupsRoute, POST: createBackupRoute } = await import(
   "@/app/api/servers/[id]/backups/route"
+);
+
+const { POST: couponRoute } = await import("@/app/api/pricing/coupon/route");
+const { GET: cronBillingGet, POST: cronBillingPost } = await import(
+  "@/app/api/cron/billing/route"
 );
 
 function post(body: unknown) {
@@ -226,5 +239,92 @@ describe("API route handlers", () => {
     expect(res.status).toBe(200);
     const events = (await res.json()) as Array<{ type: string }>;
     expect(events[0].type).toBe("CREATED");
+  });
+  describe("coupon preview", () => {
+    const config = {
+      gameSlug: "minecraft-java",
+      ramGb: 8,
+      vcpu: 4,
+      storageGb: 50,
+      regionCode: "eu-ro",
+      billingPeriod: "MONTHLY",
+    };
+
+    it("prices a code for an anonymous visitor", async () => {
+      await createCoupon({ code: "WELCOME20", value: 20 });
+
+      const res = await couponRoute(post({ ...config, couponCode: "welcome20" }));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        code: "WELCOME20",
+        discountCents: 540,
+        totalCents: 2160,
+        currency: "EUR",
+      });
+    });
+
+    it("tells a signed-in customer the code is already used", async () => {
+      const user = await createUser();
+      auth.userId = user.id;
+      await createCoupon({ code: "ONCE" });
+      await createServerFor(user.id, { couponCode: "ONCE" });
+
+      const res = await couponRoute(post({ ...config, couponCode: "ONCE" }));
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "coupon_already_used" });
+    });
+
+    it("answers 404 for an unknown code and 400 for a missing one", async () => {
+      const unknown = await couponRoute(post({ ...config, couponCode: "NOPE" }));
+      expect(unknown.status).toBe(404);
+
+      const missing = await couponRoute(post(config));
+      expect(missing.status).toBe(400);
+    });
+  });
+
+  describe("billing cron", () => {
+    const call = (authorization?: string) =>
+      new Request("http://localhost/api/cron/billing", {
+        headers: authorization ? { authorization } : {},
+      });
+
+    // Start from a known state: a developer's .env may well define the secret.
+    const original = process.env.CRON_SECRET;
+    beforeEach(() => {
+      delete process.env.CRON_SECRET;
+    });
+    afterEach(() => {
+      if (original === undefined) delete process.env.CRON_SECRET;
+      else process.env.CRON_SECRET = original;
+    });
+
+    it("stays closed while no secret is configured", async () => {
+      const res = await cronBillingGet(call("Bearer anything"));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ error: "cron_disabled" });
+    });
+
+    it("rejects a missing or wrong secret", async () => {
+      process.env.CRON_SECRET = "s3cret-value";
+
+      expect((await cronBillingGet(call())).status).toBe(401);
+      expect((await cronBillingGet(call("Bearer wrong"))).status).toBe(401);
+      expect((await cronBillingGet(call("s3cret-value"))).status).toBe(401);
+    });
+
+    it("runs the billing cycle with the right secret", async () => {
+      process.env.CRON_SECRET = "s3cret-value";
+      const user = await createUser();
+      const { serverId } = await createServerFor(user.id);
+      await endPeriod(serverId);
+
+      const res = await cronBillingPost(call("Bearer s3cret-value"));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ renewed: 1, failed: 0, deleted: 0 });
+    });
   });
 });

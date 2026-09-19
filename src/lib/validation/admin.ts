@@ -50,6 +50,29 @@ export const upsertRegionSchema = z.object({
   sortOrder: z.number().int().min(0).max(1000),
 });
 
+export const upsertCouponSchema = z
+  .object({
+    id: z.string().optional(),
+    code: z
+      .string()
+      .trim()
+      .min(3)
+      .max(32)
+      .regex(/^[A-Za-z0-9_-]+$/, "code_format"),
+    kind: z.enum(["PERCENT", "FIXED"]),
+    /** Percentage (1-100) or cents, depending on `kind`. */
+    value: z.number().int().min(1).max(1_000_000),
+    maxRedemptions: z.number().int().min(1).max(1_000_000).nullable(),
+    perUserLimit: z.number().int().min(1).max(1000),
+    minOrderCents: z.number().int().min(0).max(10_000_000),
+    expiresAt: z.coerce.date().nullable(),
+    active: z.boolean(),
+  })
+  .refine((c) => c.kind !== "PERCENT" || c.value <= 100, {
+    path: ["value"],
+    message: "percent_range",
+  });
+
 export const suspendServerSchema = z.object({
   serverId: z.string().min(1),
   reason: z.string().trim().max(200).optional(),

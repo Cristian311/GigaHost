@@ -231,6 +231,13 @@ export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}
     });
   }
 
+  log("Seeding coupons…");
+  await prisma.coupon.upsert({
+    where: { code: "WELCOME10" },
+    update: {},
+    create: { code: "WELCOME10", kind: "PERCENT", value: 10, perUserLimit: 1 },
+  });
+
   log("Seeding admin user…");
   const passwordHash = await hash(ADMIN_PASSWORD, 10);
   await prisma.user.upsert({

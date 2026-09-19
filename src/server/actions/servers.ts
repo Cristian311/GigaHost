@@ -1,16 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getLocale } from "next-intl/server";
 import { z } from "zod";
+import { APP_URL } from "@/lib/constants";
 import {
+  couponPreviewSchema,
   createServerSchema,
   powerActionSchema,
   renameServerSchema,
   resizeServerSchema,
 } from "@/lib/validation/server";
-import { requireUser } from "@/server/auth-guard";
+import { getOptionalUser, requireUser } from "@/server/auth-guard";
 import { AppError } from "@/server/errors";
-import { checkoutMock, setCancelAtPeriodEnd } from "@/server/services/order-service";
+import { validateCoupon } from "@/server/services/coupon-service";
+import { checkout, setCancelAtPeriodEnd } from "@/server/services/order-service";
+import { quote } from "@/server/services/pricing-service";
+import { payOutstanding } from "@/server/services/renewal-service";
 import {
   createBackup,
   deleteBackup,
@@ -38,15 +44,51 @@ function toActionError(error: unknown): ActionResult<never> {
   return { ok: false, error: "internal_error" };
 }
 
+/**
+ * `serverId` is set when the order was settled on the spot; `redirectUrl` when
+ * the customer still has to pay on the gateway's hosted page.
+ */
+export type CheckoutActionData =
+  | { orderId: string; serverId: string; redirectUrl?: undefined }
+  | { orderId: string; redirectUrl: string; serverId?: undefined };
+
 export async function createServerAction(
   input: unknown,
-): Promise<ActionResult<{ serverId: string; orderId: string }>> {
+): Promise<ActionResult<CheckoutActionData>> {
   const user = await requireUser();
   try {
     const data = createServerSchema.parse(input);
-    const result = await checkoutMock(user.id, data);
+    const locale = await getLocale();
+    const result = await checkout(user.id, data, {
+      successUrl: `${APP_URL}/${locale}/dashboard/checkout/success`,
+      cancelUrl: `${APP_URL}/${locale}/configure`,
+    });
     revalidatePath("/", "layout");
     return { ok: true, data: result };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/**
+ * Prices a coupon for the configurator. Works before login too; the per-user
+ * limit is then checked again at checkout.
+ */
+export async function previewCouponAction(
+  input: unknown,
+): Promise<ActionResult<{ code: string; discountCents: number; totalCents: number }>> {
+  try {
+    const { couponCode, ...config } = couponPreviewSchema.parse(input);
+    const [{ breakdown }, user] = await Promise.all([quote(config), getOptionalUser()]);
+    const applied = await validateCoupon(couponCode, breakdown.totalCents, user?.id);
+    return {
+      ok: true,
+      data: {
+        code: applied.coupon.code,
+        discountCents: applied.discountCents,
+        totalCents: breakdown.totalCents - applied.discountCents,
+      },
+    };
   } catch (error) {
     return toActionError(error);
   }
@@ -183,6 +225,18 @@ export async function setCancelAtPeriodEndAction(
   try {
     const result = await setCancelAtPeriodEnd(subscriptionId, user.id, cancel);
     if (!result) return { ok: false, error: "not_found" };
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+/** Retries the unpaid renewal of a past-due subscription right away. */
+export async function payOutstandingAction(subscriptionId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await payOutstanding(z.string().min(1).parse(subscriptionId), user.id);
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
   } catch (error) {

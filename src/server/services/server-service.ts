@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import {
   type Prisma,
+  type Server,
   type ServerEventType,
   type ServerStatus,
 } from "@/generated/prisma/client";
@@ -9,6 +10,7 @@ import type { ServerRef } from "@/server/providers/types";
 import { AppError } from "@/server/errors";
 import type { PowerAction } from "@/lib/validation/server";
 import { listEvents, recordEvent } from "./event-service";
+import { voidPendingRenewals } from "./invoice-service";
 
 export const serverInclude = {
   game: true,
@@ -20,7 +22,9 @@ export type ServerWithRelations = Prisma.ServerGetPayload<{
   include: typeof serverInclude;
 }>;
 
-export function toRef(server: ServerWithRelations): ServerRef | null {
+export function toRef(
+  server: Pick<Server, "providerId" | "status" | "statusChangedAt" | "ramGb" | "storageGb">,
+): ServerRef | null {
   if (!server.providerId) return null;
   return {
     providerId: server.providerId,
@@ -144,13 +148,15 @@ export async function deleteServer(serverId: string, userId: string) {
   await prisma.$transaction([
     prisma.server.update({
       where: { id: server.id },
-      data: { status: "DELETED", statusChangedAt: new Date() },
+      data: { status: "DELETED", statusChangedAt: new Date(), suspensionReason: null },
     }),
     prisma.subscription.updateMany({
-      where: { serverId: server.id, status: "ACTIVE" },
-      data: { status: "CANCELLED", cancelAtPeriodEnd: false },
+      where: { serverId: server.id, status: { in: ["ACTIVE", "PAST_DUE"] } },
+      data: { status: "CANCELLED", cancelAtPeriodEnd: false, pastDueSince: null },
     }),
   ]);
+  // A deleted server must not leave an unpaid renewal behind.
+  await voidPendingRenewals(server.id);
 
   await recordEvent(server.id, "DELETED", server.name);
 }
@@ -169,7 +175,10 @@ export async function getServerConsole(serverId: string, userId: string, limit =
   return getProvider().getConsoleLines(ref, limit);
 }
 
-/** Internal: called by the order service once payment succeeded. */
+/**
+ * Internal: called by the order service once payment succeeded. Never throws
+ * for a provisioning failure; the returned server is then in ERROR.
+ */
 export async function provisionServer(params: {
   userId: string;
   name: string;
@@ -230,11 +239,16 @@ export async function provisionServer(params: {
 
     return provisioned;
   } catch (error) {
-    await prisma.server.update({
+    // The customer has already paid at this point, so the order must still end
+    // up with an invoice and a subscription. Hand back the server in ERROR for
+    // an admin to look at instead of failing the whole fulfilment.
+    console.error(`Provisioning failed for server ${server.id}`, error);
+    const failed = await prisma.server.update({
       where: { id: server.id },
       data: { status: "ERROR", statusChangedAt: new Date() },
+      include: serverInclude,
     });
     await recordEvent(server.id, "ERROR", "Provisioning failed");
-    throw error;
+    return failed;
   }
 }

@@ -24,9 +24,16 @@ export const serverConfigSchema = z.object({
   billingPeriod: billingPeriodSchema,
 });
 
+export const couponCodeSchema = z.string().trim().min(1).max(32);
+
 export const createServerSchema = serverConfigSchema.extend({
   name: z.string().trim().min(3).max(40),
   gameVersion: z.string().max(32).optional(),
+  couponCode: couponCodeSchema.optional(),
+});
+
+export const couponPreviewSchema = serverConfigSchema.extend({
+  couponCode: couponCodeSchema,
 });
 
 export const powerActionSchema = z.object({

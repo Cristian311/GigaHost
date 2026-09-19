@@ -47,16 +47,18 @@ describe("admin", () => {
     expect(servers[0].region.flag).toBeTruthy();
   });
 
-  it("suspends a server, blocks power actions and marks the subscription past due", async () => {
+  it("suspends a server and blocks power actions without touching billing", async () => {
     const user = await createUser();
     const { serverId } = await createServerFor(user.id);
     await setStatus(serverId, "STOPPED");
 
     const suspended = await suspendServer(serverId, "Payment failed");
     expect(suspended.status).toBe("SUSPENDED");
+    expect(suspended.suspensionReason).toBe("ADMIN");
 
+    // An abuse suspension is not a billing state: the subscription stays as it was.
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { serverId } });
-    expect(sub.status).toBe("PAST_DUE");
+    expect(sub.status).toBe("ACTIVE");
 
     await expect(powerServer(serverId, user.id, "start")).rejects.toMatchObject({
       code: "invalid_transition",
@@ -75,6 +77,7 @@ describe("admin", () => {
 
     const restored = await unsuspendServer(serverId);
     expect(restored.status).toBe("STOPPED");
+    expect(restored.suspensionReason).toBeNull();
 
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { serverId } });
     expect(sub.status).toBe("ACTIVE");

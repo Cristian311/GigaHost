@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { parseJson, withApi } from "@/server/api";
 import { getApiUser } from "@/server/auth-guard";
 import { createServerSchema } from "@/lib/validation/server";
-import { checkoutMock } from "@/server/services/order-service";
+import { APP_URL } from "@/lib/constants";
+import { checkout } from "@/server/services/order-service";
 import { listServersForUser } from "@/server/services/server-service";
 
 export async function GET() {
@@ -17,7 +18,11 @@ export async function POST(request: Request) {
   return withApi(async () => {
     const user = await getApiUser();
     const input = await parseJson(request, createServerSchema);
-    const result = await checkoutMock(user.id, input);
-    return NextResponse.json(result, { status: 201 });
+    const result = await checkout(user.id, input, {
+      successUrl: `${APP_URL}/${user.locale}/dashboard/checkout/success`,
+      cancelUrl: `${APP_URL}/${user.locale}/configure`,
+    });
+    // 201 when the server exists already, 202 when payment is still to be made.
+    return NextResponse.json(result, { status: "serverId" in result ? 201 : 202 });
   });
 }

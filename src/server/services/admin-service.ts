@@ -85,7 +85,11 @@ export async function listAllServers() {
   });
 }
 
-/** Takes a server offline for non-payment or abuse; blocks all power actions. */
+/**
+ * Takes a server offline for abuse or any other manual reason; blocks all power
+ * actions. Billing is left alone: unlike a BILLING suspension (see
+ * renewal-service), this one is never lifted automatically by a payment.
+ */
 export async function suspendServer(serverId: string, reason?: string) {
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server || server.status === "DELETED") throw new AppError("server_not_found", 404);
@@ -93,21 +97,19 @@ export async function suspendServer(serverId: string, reason?: string) {
     throw new AppError("invalid_transition", 409, "Server is already suspended.");
   }
 
-  const [updated] = await prisma.$transaction([
-    prisma.server.update({
-      where: { id: serverId },
-      data: { status: "SUSPENDED", statusChangedAt: new Date() },
-    }),
-    prisma.subscription.updateMany({
-      where: { serverId, status: "ACTIVE" },
-      data: { status: "PAST_DUE" },
-    }),
-  ]);
+  const updated = await prisma.server.update({
+    where: { id: serverId },
+    data: { status: "SUSPENDED", statusChangedAt: new Date(), suspensionReason: "ADMIN" },
+  });
 
   await recordEvent(serverId, "SUSPENDED", reason);
   return updated;
 }
 
+/**
+ * Lifts any suspension. If the subscription is still unpaid, the next billing
+ * cycle suspends the server again.
+ */
 export async function unsuspendServer(serverId: string) {
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server || server.status === "DELETED") throw new AppError("server_not_found", 404);
@@ -115,16 +117,10 @@ export async function unsuspendServer(serverId: string) {
     throw new AppError("invalid_transition", 409, "Server is not suspended.");
   }
 
-  const [updated] = await prisma.$transaction([
-    prisma.server.update({
-      where: { id: serverId },
-      data: { status: "STOPPED", statusChangedAt: new Date() },
-    }),
-    prisma.subscription.updateMany({
-      where: { serverId, status: "PAST_DUE" },
-      data: { status: "ACTIVE" },
-    }),
-  ]);
+  const updated = await prisma.server.update({
+    where: { id: serverId },
+    data: { status: "STOPPED", statusChangedAt: new Date(), suspensionReason: null },
+  });
 
   await recordEvent(serverId, "UNSUSPENDED");
   return updated;

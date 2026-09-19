@@ -66,6 +66,21 @@ enum SubscriptionStatus {
 enum OrderKind {
   NEW
   RESIZE
+  RENEWAL
+}
+
+enum CouponKind {
+  /// `value` is a percentage (1-100).
+  PERCENT
+  /// `value` is an amount in cents.
+  FIXED
+}
+
+/// Why a server is SUSPENDED. Billing suspensions lift automatically once the
+/// outstanding invoice is paid; admin suspensions never do.
+enum SuspensionReason {
+  BILLING
+  ADMIN
 }
 
 enum BackupStatus {
@@ -87,6 +102,8 @@ enum ServerEventType {
   BACKUP_DELETED
   SUSPENDED
   UNSUSPENDED
+  RENEWED
+  PAYMENT_FAILED
   DELETED
   ERROR
 }
@@ -113,6 +130,7 @@ model User {
   orders        Order[]
   subscriptions Subscription[]
   invoices      Invoice[]
+  couponRedemptions CouponRedemption[]
 }
 
 model Account {
@@ -233,6 +251,8 @@ model Server {
   status          ServerStatus @default(PENDING)
   /// Used by the mock provider to compute lazy state transitions.
   statusChangedAt DateTime     @default(now())
+  /// Set only while status is SUSPENDED.
+  suspensionReason SuspensionReason?
   /// Identifier on the provisioning backend (mock id / Pterodactyl uuid).
   providerId      String?      @unique
   ip              String?
@@ -298,18 +318,65 @@ model Order {
   /// JSON snapshot of the configuration at order time.
   configSnapshot String        @db.Text
   subtotalCents  Int
+  /// Billing-period discount (quarterly / yearly).
   discountCents  Int
+  /// Discount from a coupon; first order only, never applied to renewals.
+  couponDiscountCents Int      @default(0)
+  /// Downgrade credit consumed by this order (renewals only).
+  creditAppliedCents  Int      @default(0)
+  /// subtotal - discount - couponDiscount - creditApplied
   totalCents     Int
   currency       String        @default("EUR")
+  couponId       String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  server       Server?       @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server       Server?           @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  coupon       Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   invoices     Invoice[]
   subscription Subscription?
+  redemption   CouponRedemption?
 
   @@index([userId])
+  @@index([serverId, kind, status])
+}
+
+model Coupon {
+  id             String     @id @default(cuid())
+  /// Stored upper-case; lookups are case-insensitive.
+  code           String     @unique
+  kind           CouponKind
+  /// Percentage (1-100) or cents, depending on `kind`.
+  value          Int
+  /// null = unlimited
+  maxRedemptions Int?
+  timesRedeemed  Int        @default(0)
+  perUserLimit   Int        @default(1)
+  /// Order total (after the period discount) required to use the coupon.
+  minOrderCents  Int        @default(0)
+  expiresAt      DateTime?
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  orders      Order[]
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id          String   @id @default(cuid())
+  couponId    String
+  userId      String
+  orderId     String   @unique
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, userId])
 }
 
 model Subscription {
@@ -326,6 +393,10 @@ model Subscription {
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean            @default(false)
+  /// When the first renewal charge failed; drives suspension and deletion.
+  pastDueSince       DateTime?
+  lastChargeAttemptAt DateTime?
+  chargeAttempts     Int                @default(0)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -334,6 +405,7 @@ model Subscription {
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([status, currentPeriodEnd])
 }
 
 model Invoice {

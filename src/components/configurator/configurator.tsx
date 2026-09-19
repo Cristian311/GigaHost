@@ -18,6 +18,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import type { PricingTable } from "@/lib/pricing/types";
 import { createServerAction } from "@/server/actions/servers";
 import { BillingToggle } from "./billing-toggle";
+import { CouponField, type AppliedCoupon } from "./coupon-field";
 import { GamePicker } from "./game-picker";
 import { PriceSummary } from "./price-summary";
 import { RegionPicker } from "./region-picker";
@@ -55,6 +56,7 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [nameError, setNameError] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
 
   const { state, update, selectGame, game, breakdown, limits, availableGames, searchString } =
     useConfigurator({ games, regions, pricing, initialSearch, syncUrl: true });
@@ -78,11 +80,18 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
         storageGb: state.storageGb,
         regionCode: state.regionCode,
         billingPeriod: state.billingPeriod,
+        couponCode: coupon?.code,
       });
 
       if (!result.ok) {
         const key = `errors.${result.error}` as const;
         toast.error(t.has(key) ? t(key) : t("errors.internal_error"));
+        return;
+      }
+
+      // A hosted gateway takes over from here; its webhook creates the server.
+      if (result.data.redirectUrl) {
+        window.location.assign(result.data.redirectUrl);
         return;
       }
 
@@ -185,7 +194,7 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
       </div>
 
       <aside className="lg:sticky lg:top-24 lg:self-start">
-        <PriceSummary breakdown={breakdown}>
+        <PriceSummary breakdown={breakdown} coupon={coupon}>
           <div className="mt-5 space-y-2">
             <Label htmlFor="server-name">{t("serverName")}</Label>
             <Input
@@ -198,6 +207,18 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
             />
             {nameError ? <p className="text-xs text-destructive">{nameError}</p> : null}
           </div>
+
+          <CouponField
+            config={{
+              gameSlug: state.gameSlug,
+              ramGb: state.ramGb,
+              vcpu: state.vcpu,
+              storageGb: state.storageGb,
+              regionCode: state.regionCode,
+              billingPeriod: state.billingPeriod,
+            }}
+            onChange={setCoupon}
+          />
 
           {isAuthenticated ? (
             <Button

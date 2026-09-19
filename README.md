@@ -100,7 +100,13 @@ prisma/            schema, migrations, seed
 
 **Pricing.** `calculatePrice()` is a pure function working in integer cents. The client uses it for the live preview; the server recomputes it on checkout, so a tampered total is never trusted.
 
-**Money flow (simulated).** Checkout → Order (PAID) → Invoice (PAID) → Server provisioned → Subscription (ACTIVE). Replacing the "mark as paid" step with a Stripe webhook is the only change needed for real payments.
+**Money flow.** `createOrder` stores a PENDING order with a server-side price, `fulfilOrder` turns a paid order into a server, an invoice and a subscription. With the mock gateway both happen in one request; with a hosted gateway the customer is redirected and the webhook calls `fulfilOrder`, which is idempotent because gateways redeliver. Everything that moves money goes through the `PaymentProvider` interface (`src/server/payments/`), mirroring `ServerProvider`.
+
+**Billing cycle.** `runBillingCycle()` (`src/server/services/renewal-service.ts`) renews subscriptions whose period ended, applying downgrade credit first; ends the ones the customer cancelled; retries failed charges once a day; suspends unpaid servers after 3 days and deletes them after 14 (`BILLING_POLICY` in `src/lib/constants.ts`). It decides everything from timestamps, so running it twice, or after an outage, is harmless. A period keeps a single invoice however many attempts it takes. Suspensions carry a reason: a BILLING suspension lifts itself when the money arrives, an ADMIN one never does.
+
+Schedule `GET /api/cron/billing` hourly with `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends that header on its own); the endpoint stays closed while the secret is unset. Locally, use **Admin → Billing → Run billing cycle now**.
+
+**Coupons.** Percentage or fixed, with a global cap, a per-customer cap, a minimum order and an expiry, managed under **Admin → Coupons**. A coupon discounts the first invoice only; the subscription renews at the regular price. The seed creates `WELCOME10`.
 
 **Resizing.** Changing RAM, CPU or storage mid-period is priced by `prorate()`
 (`src/lib/pricing/prorate.ts`): only the unused share of the paid period is
@@ -132,7 +138,9 @@ adapter in `db.ts`, a new `DATABASE_URL`, and a fresh `prisma migrate dev`.
 - [x] Backups (simulated) and a per-server activity log
 - [x] Admin: all servers, suspension, regions
 - [x] SEO: sitemap, robots, Open Graph images, hreflang alternates
-- [ ] Stripe Checkout + webhooks (replace mock checkout in `order-service.ts`)
+- [x] Billing cycle: renewals, credit, retries, suspension and deletion for non-payment
+- [x] Coupons
+- [ ] Stripe (a second `PaymentProvider` next to the mock one)
 - [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
 - [ ] File manager and scheduled tasks
 - [ ] Email verification & password reset

@@ -217,7 +217,28 @@
       "region_not_found": "Te rugăm să alegi o regiune.",
       "below_minimum": "Configurația este sub cerințele minime ale jocului.",
       "validation": "Verifică formularul și încearcă din nou.",
-      "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      "internal_error": "A apărut o eroare. Te rugăm să încerci din nou.",
+      "coupon_not_found": "Codul de reducere nu există.",
+      "coupon_expired": "Codul de reducere a expirat.",
+      "coupon_exhausted": "Codul de reducere a fost folosit de numărul maxim de ori.",
+      "coupon_already_used": "Ai folosit deja acest cod de reducere.",
+      "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cupon."
+    },
+    "coupon": {
+      "label": "Cod de reducere",
+      "placeholder": "ex. WELCOME20",
+      "apply": "Aplică",
+      "remove": "Elimină",
+      "applied": "Cupon {code}",
+      "firstInvoiceOnly": "Se aplică la prima factură. Reînnoirile se facturează la prețul obișnuit.",
+      "errors": {
+        "coupon_not_found": "Codul acesta nu există.",
+        "coupon_expired": "Codul acesta a expirat.",
+        "coupon_exhausted": "Codul acesta a fost folosit de numărul maxim de ori.",
+        "coupon_already_used": "Ai folosit deja acest cod.",
+        "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cod.",
+        "internal_error": "Nu am putut verifica codul. Încearcă din nou."
+      }
     }
   },
   "auth": {
@@ -391,7 +412,9 @@
         "SUSPENDED": "Server suspendat",
         "UNSUSPENDED": "Server reactivat",
         "DELETED": "Server șters",
-        "ERROR": "Eroare"
+        "ERROR": "Eroare",
+        "RENEWED": "Abonament reînnoit",
+        "PAYMENT_FAILED": "Plată eșuată"
       }
     }
   },
@@ -424,6 +447,26 @@
       "VOID": "Anulată",
       "PENDING": "În așteptare",
       "FAILED": "Eșuată"
+    },
+    "credit": "Credit: {amount}",
+    "creditHint": "Se scade din următoarea reînnoire.",
+    "payNow": "Plătește acum",
+    "paying": "Se plătește…",
+    "paid": "Plata a fost primită. Mulțumim!",
+    "pastDueTitle": "Plata a eșuat",
+    "pastDueBody": "Nu am putut reînnoi {count, plural, one {# abonament} few {# abonamente} other {# de abonamente}}. Serverele neplătite sunt suspendate după {suspendDays} zile și șterse după {deleteDays} zile.",
+    "endsOn": "Se încheie pe",
+    "kinds": {
+      "NEW": "Server nou",
+      "RESIZE": "Modificare resurse",
+      "RENEWAL": "Reînnoire"
+    },
+    "type": "Tip",
+    "errors": {
+      "payment_failed": "Plata a fost refuzată. Verifică metoda de plată.",
+      "nothing_due": "Nu ai nimic de plată pentru acest abonament.",
+      "subscription_not_found": "Abonamentul nu a fost găsit.",
+      "internal_error": "Ceva nu a mers. Încearcă din nou."
     }
   },
   "account": {
@@ -459,7 +502,9 @@
       "regions": "Regiuni",
       "servers": "Servere",
       "pricing": "Prețuri",
-      "users": "Utilizatori"
+      "users": "Utilizatori",
+      "billing": "Facturare",
+      "coupons": "Cupoane"
     },
     "servers": {
       "title": "Toate serverele",
@@ -545,6 +590,55 @@
       "makeAdmin": "Fă admin",
       "makeUser": "Fă utilizator",
       "cannotDemoteSelf": "Nu îți poți elimina propriul rol de admin."
+    },
+    "billing": {
+      "activeSubscriptions": "Abonamente active",
+      "mrr": "Venit lunar recurent",
+      "pastDueCount": "Neplătite",
+      "run": "Rulează ciclul de facturare acum",
+      "running": "Rulează…",
+      "runHint": "Reînnoiește ce este scadent, reîncearcă plățile eșuate, suspendă și șterge serverele neplătite. În producție rulează din planificator, la /api/cron/billing.",
+      "report": "Reînnoite {renewed} · eșuate {failed} · anulate {cancelled} · suspendate {suspended} · șterse {deleted}",
+      "upcoming": "Se reînnoiesc în următoarele 7 zile",
+      "pastDue": "Neplătite",
+      "customer": "Client",
+      "server": "Server",
+      "amount": "Sumă",
+      "renewsOn": "Se reînnoiește pe",
+      "unpaidSince": "Neplătit din",
+      "attempts": "Încercări",
+      "willCancel": "se va anula",
+      "empty": "Nimic aici."
+    },
+    "coupons": {
+      "add": "Cupon nou",
+      "edit": "Editează cuponul",
+      "code": "Cod",
+      "kind": "Tip",
+      "kinds": {
+        "PERCENT": "Procent",
+        "FIXED": "Sumă fixă"
+      },
+      "value": "Valoare",
+      "valuePercent": "Procent reducere",
+      "valueFixed": "Reducere (în cenți)",
+      "redemptions": "Folosit",
+      "unlimited": "nelimitat",
+      "maxRedemptions": "Folosiri maxime (gol = nelimitat)",
+      "perUserLimit": "Folosiri per client",
+      "minOrder": "Comandă minimă (în cenți)",
+      "expiresAt": "Expiră",
+      "never": "niciodată",
+      "active": "Activ",
+      "saved": "Cupon salvat.",
+      "deleteConfirm": "Ștergi acest cupon? Cupoanele deja folosite sunt doar dezactivate.",
+      "delete": "Șterge",
+      "empty": "Niciun cupon încă.",
+      "errors": {
+        "coupon_code_taken": "Există deja un cupon cu acest cod.",
+        "validation": "Verifică formularul.",
+        "internal_error": "Ceva nu a mers."
+      }
     }
   },
   "errors": {

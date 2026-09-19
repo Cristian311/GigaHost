@@ -6,6 +6,7 @@ import {
   pricingConfigSchema,
   setUserRoleSchema,
   suspendServerSchema,
+  upsertCouponSchema,
   upsertGameSchema,
   upsertRegionSchema,
 } from "@/lib/validation/admin";
@@ -21,6 +22,8 @@ import {
   upsertGame,
   upsertRegion,
 } from "@/server/services/admin-service";
+import { deleteCoupon, upsertCoupon } from "@/server/services/coupon-service";
+import { runBillingCycle, type BillingCycleReport } from "@/server/services/renewal-service";
 import type { ActionResult } from "./servers";
 
 function fail(error: unknown): ActionResult<never> {
@@ -122,6 +125,40 @@ export async function setUserRoleAction(input: unknown): Promise<ActionResult> {
     await setUserRole(data.userId, data.role);
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function upsertCouponAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await upsertCoupon(upsertCouponSchema.parse(input));
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function deleteCouponAction(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await deleteCoupon(z.string().min(1).parse(id));
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Runs the billing engine on demand; production relies on /api/cron/billing. */
+export async function runBillingCycleAction(): Promise<ActionResult<BillingCycleReport>> {
+  await requireAdmin();
+  try {
+    const report = await runBillingCycle();
+    revalidatePath("/", "layout");
+    return { ok: true, data: report };
   } catch (error) {
     return fail(error);
   }
