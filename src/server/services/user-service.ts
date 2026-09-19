@@ -1,6 +1,7 @@
 import { compare, hash } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { AppError } from "@/server/errors";
+import { notifyPasswordChanged, sendVerificationEmail } from "./account-security-service";
 
 export async function registerUser(params: {
   name: string;
@@ -12,7 +13,7 @@ export async function registerUser(params: {
   if (existing) throw new AppError("email_taken", 409);
 
   const passwordHash = await hash(params.password, 10);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name: params.name,
       email: params.email,
@@ -20,6 +21,16 @@ export async function registerUser(params: {
       locale: params.locale ?? "en",
     },
   });
+
+  // The account exists either way; a mail problem must not undo the sign-up.
+  // The customer can ask for the link again from the dashboard.
+  try {
+    await sendVerificationEmail(user.id);
+  } catch (error) {
+    console.error(`Could not send the verification email to ${user.email}`, error);
+  }
+
+  return user;
 }
 
 export async function updateProfile(
@@ -38,10 +49,13 @@ export async function changePassword(
   if (!user?.passwordHash) throw new AppError("invalid_credentials", 400);
   const ok = await compare(currentPassword, user.passwordHash);
   if (!ok) throw new AppError("invalid_credentials", 400);
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await hash(newPassword, 10) },
+    // Bumping the version signs out every other session of this account.
+    data: { passwordHash: await hash(newPassword, 10), sessionVersion: { increment: 1 } },
   });
+  await notifyPasswordChanged(userId);
+  return updated;
 }
 
 export async function getUserById(userId: string) {
@@ -56,6 +70,7 @@ export async function getUserById(userId: string) {
       locale: true,
       createdAt: true,
       passwordHash: true,
+      emailVerified: true,
     },
   });
 }

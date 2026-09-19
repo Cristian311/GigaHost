@@ -223,7 +223,9 @@
       "coupon_exhausted": "That coupon code has been used up.",
       "coupon_already_used": "You have already used that coupon code.",
       "coupon_min_order": "Your order is below the minimum for that coupon.",
-      "payment_failed": "The payment was declined. Please check your payment method."
+      "payment_failed": "The payment was declined. Please check your payment method.",
+      "email_not_verified": "Please confirm your email address before ordering. The link is in your inbox.",
+      "rate_limited": "Too many orders in a short time. Please wait a few minutes."
     },
     "coupon": {
       "label": "Coupon code",
@@ -238,7 +240,8 @@
         "coupon_exhausted": "That code has been used up.",
         "coupon_already_used": "You have already used that code.",
         "coupon_min_order": "Your order is below the minimum for that code.",
-        "internal_error": "Could not check the code. Please try again."
+        "internal_error": "Could not check the code. Please try again.",
+        "rate_limited": "Too many codes tried. Please wait a minute."
       }
     }
   },
@@ -251,7 +254,9 @@
       "submit": "Log in",
       "submitting": "Logging in…",
       "noAccount": "No account yet?",
-      "register": "Create one"
+      "register": "Create one",
+      "forgot": "Forgot password?",
+      "passwordChanged": "Your password was changed. Please sign in with the new one."
     },
     "register": {
       "title": "Create your account",
@@ -273,9 +278,40 @@
     "errors": {
       "invalid_credentials": "Invalid email or password.",
       "email_taken": "An account with this email already exists.",
-      "validation": "Please check the highlighted fields.",
-      "passwords_mismatch": "Passwords do not match.",
-      "password_short": "Password must be at least 8 characters."
+      "validation": "Please check the form and try again.",
+      "passwords_mismatch": "The passwords do not match.",
+      "password_short": "Password must be at least 8 characters.",
+      "rate_limited": "Too many attempts. Please wait a while and try again.",
+      "invalid_token": "This link has expired or was already used. Please request a new one.",
+      "internal_error": "Something went wrong. Please try again."
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "subtitle": "Enter your email and we will send you a link to choose a new one.",
+      "submit": "Send reset link",
+      "backToLogin": "Back to sign in",
+      "sentTitle": "Check your inbox",
+      "sentBody": "If an account exists for that address, a reset link is on its way. It is valid for one hour."
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "subtitle": "You will be signed out everywhere else once it is changed.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Change password",
+      "doneTitle": "Password changed",
+      "doneBody": "You can now sign in with your new password.",
+      "invalidTitle": "This link no longer works",
+      "invalidBody": "Reset links expire after one hour and can be used once. Request a new one and try again.",
+      "requestNew": "Request a new link"
+    },
+    "verify": {
+      "title": "Email confirmation",
+      "okTitle": "Email confirmed",
+      "okBody": "Thank you. You can now order servers.",
+      "failedTitle": "This link no longer works",
+      "failedBody": "Confirmation links expire after 24 hours and can be used once. You can request a new one from your dashboard.",
+      "continue": "Go to the dashboard"
     }
   },
   "dashboard": {
@@ -508,7 +544,9 @@
       "pricing": "Pricing",
       "users": "Users",
       "billing": "Billing",
-      "coupons": "Coupons"
+      "coupons": "Coupons",
+      "emails": "Emails",
+      "audit": "Audit log"
     },
     "servers": {
       "title": "All servers",
@@ -643,6 +681,45 @@
         "validation": "Please check the form.",
         "internal_error": "Something went wrong."
       }
+    },
+    "emails": {
+      "hintOutbox": "No SMTP server is configured, so emails are only kept here. Open one to read it and follow its links.",
+      "hintSmtp": "Every email the platform sent, with its delivery status.",
+      "date": "Date",
+      "to": "To",
+      "subject": "Subject",
+      "status": "Status",
+      "preview": "Preview",
+      "links": "Links in this email",
+      "empty": "No emails yet.",
+      "statuses": {
+        "LOGGED": "Outbox only",
+        "SENT": "Sent",
+        "FAILED": "Failed"
+      }
+    },
+    "audit": {
+      "date": "Date",
+      "actor": "Admin",
+      "action": "Action",
+      "target": "Target",
+      "details": "Details",
+      "ip": "IP address",
+      "deletedUser": "deleted account",
+      "empty": "No admin actions recorded yet.",
+      "actions": {
+        "pricing.update": "Pricing updated",
+        "game.upsert": "Game saved",
+        "game.delete": "Game deleted",
+        "region.upsert": "Region saved",
+        "region.delete": "Region deleted",
+        "coupon.upsert": "Coupon saved",
+        "coupon.delete": "Coupon deleted",
+        "server.suspend": "Server suspended",
+        "server.unsuspend": "Server reactivated",
+        "user.role": "Role changed",
+        "billing.run": "Billing cycle run"
+      }
     }
   },
   "errors": {
@@ -676,5 +753,16 @@
     },
     "tryAgain": "Back to the configurator",
     "goToBilling": "Go to billing"
+  },
+  "verifyBanner": {
+    "message": "Please confirm your email address ({email}) before ordering a server.",
+    "resend": "Resend email",
+    "sent": "Confirmation email sent to {email}.",
+    "sentShort": "Sent",
+    "errors": {
+      "rate_limited": "You asked for that a few times already. Please try again later.",
+      "already_verified": "Your email is already confirmed. Refresh the page.",
+      "internal_error": "Could not send the email. Please try again."
+    }
   }
 }

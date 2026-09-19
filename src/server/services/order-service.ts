@@ -6,6 +6,7 @@ import { AppError } from "@/server/errors";
 import { getPaymentProvider } from "@/server/payments";
 import { redeemCoupon, validateCoupon } from "./coupon-service";
 import { nextInvoiceNumber } from "./invoice-service";
+import { notifyOrderConfirmed } from "./notification-service";
 import { quote } from "./pricing-service";
 import { provisionServer } from "./server-service";
 
@@ -159,6 +160,7 @@ export async function fulfilOrder(
     }
   });
 
+  await notifyOrderConfirmed(order.id);
   return { orderId: order.id, serverId: server.id };
 }
 

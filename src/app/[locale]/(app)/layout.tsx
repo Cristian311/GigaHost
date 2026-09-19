@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { VerifyEmailBanner } from "@/components/dashboard/verify-email-banner";
 import { requireUser } from "@/server/auth-guard";
+import { isEmailVerificationRequired } from "@/server/services/account-security-service";
+import { getUserById } from "@/server/services/user-service";
 
 /** Nothing behind the login should be indexed. */
 export const metadata: Metadata = {
@@ -10,6 +13,8 @@ export const metadata: Metadata = {
 
 export default async function AppLayout({ children }: LayoutProps<"/[locale]">) {
   const user = await requireUser();
+  const account = isEmailVerificationRequired() ? await getUserById(user.id) : null;
+  const needsVerification = account !== null && !account.emailVerified;
 
   return (
     <>
@@ -20,7 +25,10 @@ export default async function AppLayout({ children }: LayoutProps<"/[locale]">) 
             <Sidebar isAdmin={user.role === "ADMIN"} />
           </div>
         </aside>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          {needsVerification ? <VerifyEmailBanner email={account.email} /> : null}
+          {children}
+        </main>
       </div>
     </>
   );

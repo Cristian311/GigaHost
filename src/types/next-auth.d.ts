@@ -14,6 +14,7 @@ declare module "next-auth" {
   interface User {
     role?: AppRole;
     locale?: string;
+    sessionVersion?: number;
   }
 }
 
@@ -22,5 +23,6 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: AppRole;
     locale?: string;
+    sessionVersion?: number;
   }
 }

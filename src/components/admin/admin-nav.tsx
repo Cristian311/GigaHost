@@ -16,6 +16,8 @@ export function AdminNav() {
     { href: "/admin/coupons", label: t("coupons") },
     { href: "/admin/billing", label: t("billing") },
     { href: "/admin/users", label: t("users") },
+    { href: "/admin/emails", label: t("emails") },
+    { href: "/admin/audit", label: t("audit") },
   ];
 
   return (

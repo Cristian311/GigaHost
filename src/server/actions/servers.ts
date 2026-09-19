@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getLocale } from "next-intl/server";
 import { z } from "zod";
 import { APP_URL } from "@/lib/constants";
@@ -13,6 +14,8 @@ import {
 } from "@/lib/validation/server";
 import { getOptionalUser, requireUser } from "@/server/auth-guard";
 import { AppError } from "@/server/errors";
+import { RATE_LIMITS, assertRateLimit, clientIp } from "@/server/security/rate-limit";
+import { assertEmailVerified } from "@/server/services/account-security-service";
 import { validateCoupon } from "@/server/services/coupon-service";
 import { checkout, setCancelAtPeriodEnd } from "@/server/services/order-service";
 import { quote } from "@/server/services/pricing-service";
@@ -59,6 +62,8 @@ export async function createServerAction(
   const user = await requireUser();
   try {
     const data = createServerSchema.parse(input);
+    await assertEmailVerified(user.id);
+    await assertRateLimit(`checkout:${user.id}`, RATE_LIMITS.checkout);
     const locale = await getLocale();
     const result = await checkout(user.id, data, {
       successUrl: `${APP_URL}/${locale}/dashboard/checkout/success`,
@@ -80,6 +85,8 @@ export async function previewCouponAction(
 ): Promise<ActionResult<{ code: string; discountCents: number; totalCents: number }>> {
   try {
     const { couponCode, ...config } = couponPreviewSchema.parse(input);
+    // Codes are guessable; this keeps the endpoint from being used to find them.
+    await assertRateLimit(`coupon:${clientIp(await headers())}`, RATE_LIMITS.couponPreview);
     const [{ breakdown }, user] = await Promise.all([quote(config), getOptionalUser()]);
     const applied = await validateCoupon(couponCode, breakdown.totalCents, user?.id);
     return {

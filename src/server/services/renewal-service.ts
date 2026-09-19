@@ -8,6 +8,12 @@ import { getPaymentProvider, type ChargeFn } from "@/server/payments";
 import { getProvider } from "@/server/providers";
 import { recordEvent } from "./event-service";
 import { nextInvoiceNumber, voidPendingRenewals } from "./invoice-service";
+import {
+  notifyPaymentFailed,
+  notifyRenewalPaid,
+  notifyServerDeleted,
+  notifyServerSuspended,
+} from "./notification-service";
 import { toRef } from "./server-service";
 
 const DAY_MS = 86_400_000;
@@ -123,6 +129,9 @@ async function attemptRenewal(
       },
     });
     await recordEvent(sub.serverId, "PAYMENT_FAILED", result.reason, { attempt, totalCents });
+    // One email for the first failure; the daily retries that follow stay quiet
+    // until the suspension notice.
+    if (attempt === 1) await notifyPaymentFailed(sub.serverId, totalCents, sub.currency);
     return { paid: false, reason: result.reason };
   }
 
@@ -168,16 +177,24 @@ async function attemptRenewal(
   });
 
   await recordEvent(sub.serverId, "RENEWED", undefined, { totalCents, creditUsed });
+  await notifyRenewalPaid(orderId);
   if (liftSuspension) await recordEvent(sub.serverId, "UNSUSPENDED", "Payment received");
   return { paid: true };
 }
 
-async function suspendForBilling(serverId: string, now: Date, reason: string) {
+async function suspendForBilling(
+  serverId: string,
+  now: Date,
+  reason: "Unpaid" | "Subscription ended",
+) {
   await prisma.server.update({
     where: { id: serverId },
     data: { status: "SUSPENDED", statusChangedAt: now, suspensionReason: "BILLING" },
   });
   await recordEvent(serverId, "SUSPENDED", reason);
+  // A customer who cancelled knows why the server stopped; only non-payment
+  // needs the warning about deletion.
+  if (reason === "Unpaid") await notifyServerSuspended(serverId);
 }
 
 async function deleteForBilling(sub: DueSubscription, now: Date, reason: string) {
@@ -199,6 +216,7 @@ async function deleteForBilling(sub: DueSubscription, now: Date, reason: string)
   ]);
   await voidPendingRenewals(sub.serverId);
   await recordEvent(sub.serverId, "DELETED", reason);
+  await notifyServerDeleted(sub.serverId);
 }
 
 /**

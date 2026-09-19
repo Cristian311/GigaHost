@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation";
 import { loginAction, type AuthFormState } from "@/server/actions/auth";
 
-export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+export function LoginForm({ callbackUrl, notice }: { callbackUrl?: string; notice?: string }) {
   const t = useTranslations("auth");
   const [state, action, pending] = useActionState<AuthFormState, FormData>(loginAction, {});
 
@@ -17,12 +17,23 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
     <form action={action} className="space-y-4">
       {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
 
+      {notice === "password_changed" ? (
+        <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+          {t("login.passwordChanged")}
+        </p>
+      ) : null}
+
       <div className="space-y-2">
         <Label htmlFor="email">{t("login.email")}</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">{t("login.password")}</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">{t("login.password")}</Label>
+          <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+            {t("login.forgot")}
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"

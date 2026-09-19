@@ -10,6 +10,11 @@ let userCounter = 0;
 
 /** Removes all per-user data but keeps the seeded catalog (games, regions, pricing). */
 export async function resetData() {
+  await prisma.auditLog.deleteMany();
+  await prisma.emailMessage.deleteMany();
+  await prisma.rateLimit.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.verificationToken.deleteMany();
   await prisma.couponRedemption.deleteMany();
   await prisma.serverEvent.deleteMany();
   await prisma.backup.deleteMany();
@@ -21,7 +26,9 @@ export async function resetData() {
   await prisma.user.deleteMany({ where: { email: { not: ADMIN_EMAIL } } });
 }
 
-export async function createUser(options: { role?: Role; email?: string } = {}) {
+export async function createUser(
+  options: { role?: Role; email?: string; locale?: string; verified?: boolean } = {},
+) {
   userCounter += 1;
   return prisma.user.create({
     data: {
@@ -29,8 +36,26 @@ export async function createUser(options: { role?: Role; email?: string } = {}) 
       name: `Test User ${userCounter}`,
       passwordHash: await hash("password1234", 4),
       role: options.role ?? "USER",
+      locale: options.locale ?? "en",
+      // Most tests are about something else; they get a confirmed address.
+      emailVerified: options.verified === false ? null : new Date(),
     },
   });
+}
+
+/** Emails produced so far, oldest first. */
+export function outbox(to?: string) {
+  return prisma.emailMessage.findMany({
+    where: to ? { to } : undefined,
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/** Pulls the single-use token out of the link in an email. */
+export function tokenFromEmail(email: { text: string }): string {
+  const match = email.text.match(/[?&]token=([A-Za-z0-9_-]+)/);
+  if (!match) throw new Error("No token link in this email.");
+  return match[1];
 }
 
 /** Creates a paid server through the real checkout path. */

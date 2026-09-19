@@ -111,6 +111,14 @@ Schedule `GET /api/cron/billing` hourly with `Authorization: Bearer $CRON_SECRET
 
 **Coupons.** Percentage or fixed, with a global cap, a per-customer cap, a minimum order and an expiry, managed under **Admin → Coupons**. A coupon discounts the first invoice only; the subscription renews at the regular price. The seed creates `WELCOME10`.
 
+**Accounts and email.** New accounts get a confirmation link and cannot order until they use it (`REQUIRE_EMAIL_VERIFICATION`). Password reset links last an hour and work once; like verification tokens they are stored only as SHA-256 hashes, so a database leak does not hand out working links, and the reset form answers the same way whether or not the address has an account. Changing or resetting a password bumps `User.sessionVersion`; every JWT carries the version it was issued for and is re-checked on the server on each use, which is how sessions get revoked without a session table (the role is refreshed in the same query, so a demoted admin loses access at once).
+
+Every email goes to the `EmailMessage` outbox first and is delivered through SMTP only when `SMTP_URL` is set. In development the outbox is the mailbox: **Admin → Emails** previews each message in an inert sandboxed frame and lists its links so you can follow them. Delivery failures are recorded on the row and never thrown, so a mail outage cannot fail a checkout or a renewal. Customers are told when an order is confirmed, a server is ready, a renewal was paid, a payment failed (once, not on every retry), a server was suspended or deleted, and when their password changes, in the language they use the site in.
+
+**Rate limiting.** Fixed-window counters in the `RateLimit` table (`src/server/security/rate-limit.ts`), so limits hold across instances and restarts: login per address *and* account, sign-up, password reset per address and per mailbox, verification emails, checkout, and coupon lookups (codes are guessable). API responses carry `Retry-After`.
+
+**Audit log.** Every successful admin mutation is recorded with the admin, their address and what changed (**Admin → Audit log**); failed or refused actions are not. The trail survives the deletion of the admin's account.
+
 **Resizing.** Changing RAM, CPU or storage mid-period is priced by `prorate()`
 (`src/lib/pricing/prorate.ts`): only the unused share of the paid period is
 re-priced. Upgrades are invoiced immediately; downgrades are never refunded but
@@ -152,7 +160,7 @@ Prisma models, and a unit test fails if one slips through.
 - [x] Stripe payments (hosted checkout, saved cards, signed webhooks, billing portal)
 - [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
 - [ ] File manager and scheduled tasks
-- [ ] Email verification & password reset
-- [ ] Rate limiting and audit logs
+- [x] Email verification, password reset, transactional emails with a development outbox
+- [x] Rate limiting, session revocation and an admin audit log
 
 > Roblox is listed in the catalog as **unavailable**: Roblox does not allow third-party hosting of experiences.

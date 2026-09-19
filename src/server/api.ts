@@ -18,7 +18,11 @@ export async function withApi(handler: () => Promise<Response>): Promise<Respons
     if (error instanceof UnauthorizedError) return jsonError(401, "unauthorized");
     if (error instanceof ForbiddenError) return jsonError(403, "forbidden");
     if (error instanceof AppError) {
-      return jsonError(error.status, error.code, error.details ?? error.message);
+      const response = jsonError(error.status, error.code, error.details ?? error.message);
+      const retryAfter = (error.details as { retryAfterSeconds?: number } | undefined)
+        ?.retryAfterSeconds;
+      if (error.status === 429 && retryAfter) response.headers.set("Retry-After", String(retryAfter));
+      return response;
     }
     console.error(error);
     return jsonError(500, "internal_error");

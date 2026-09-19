@@ -123,6 +123,9 @@ model User {
   locale        String    @default("en")
   /// Customer object at the payment gateway; created on first checkout.
   stripeCustomerId String? @unique
+  /// Bumped on password change or reset; sessions issued for an older value
+  /// stop being accepted.
+  sessionVersion Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -133,6 +136,9 @@ model User {
   subscriptions Subscription[]
   invoices      Invoice[]
   couponRedemptions CouponRedemption[]
+  passwordResetTokens PasswordResetToken[]
+  emails        EmailMessage[]
+  auditLogs     AuditLog[]
 }
 
 model Account {
@@ -171,6 +177,73 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+}
+
+/// Single-use, short-lived. Only a hash is stored, so a database leak does not
+/// hand out working reset links.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum EmailStatus {
+  /// No SMTP configured: kept in the outbox only (development).
+  LOGGED
+  SENT
+  FAILED
+}
+
+/// Outbox: every email the app produces, delivered or not.
+model EmailMessage {
+  id        String      @id @default(cuid())
+  userId    String?
+  to        String
+  subject   String
+  template  String
+  text      String      @db.Text
+  html      String      @db.Text
+  status    EmailStatus
+  error     String?     @db.Text
+  createdAt DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([to])
+}
+
+/// Fixed-window counters, e.g. "login:203.0.113.7".
+model RateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+/// Who changed what in the admin area.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  /// JSON details of the change.
+  meta       String?  @db.Text
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
 }
 
 // ---------------------------------------------------------------------------

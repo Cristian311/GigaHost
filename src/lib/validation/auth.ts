@@ -33,5 +33,20 @@ export const changePasswordSchema = z
     message: "passwords_mismatch",
   });
 
+export const forgotPasswordSchema = z.object({
+  email: z.email().max(254).transform((v) => v.trim().toLowerCase()),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(20).max(200),
+    password: z.string().min(8).max(128),
+    confirmPassword: z.string().min(8).max(128),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "passwords_mismatch",
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

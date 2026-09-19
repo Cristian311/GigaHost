@@ -11,6 +11,7 @@ import { AppError } from "@/server/errors";
 import type { PowerAction } from "@/lib/validation/server";
 import { listEvents, recordEvent } from "./event-service";
 import { voidPendingRenewals } from "./invoice-service";
+import { notifyServerReady } from "./notification-service";
 
 export const serverInclude = {
   game: true,
@@ -61,6 +62,7 @@ export async function syncStatus(
 
   const eventType = COMPLETION_EVENTS[server.status]?.[live];
   if (eventType) await recordEvent(server.id, eventType);
+  if (eventType === "INSTALLED") await notifyServerReady(server.id);
 
   return updated;
 }

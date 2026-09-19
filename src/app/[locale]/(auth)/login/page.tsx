@@ -14,13 +14,14 @@ export default async function LoginPage({ params, searchParams }: PageProps<"/[l
   setRequestLocale(locale);
   const [t, search] = await Promise.all([getTranslations("auth.login"), searchParams]);
   const callbackUrl = typeof search.callbackUrl === "string" ? search.callbackUrl : undefined;
+  const notice = typeof search.notice === "string" ? search.notice : undefined;
 
   return (
     <>
       <h1 className="text-2xl font-bold">{t("title")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       <div className="mt-6">
-        <LoginForm callbackUrl={callbackUrl} />
+        <LoginForm callbackUrl={callbackUrl} notice={notice} />
         <OAuthButtons google={oauthProviders.google} discord={oauthProviders.discord} />
       </div>
     </>

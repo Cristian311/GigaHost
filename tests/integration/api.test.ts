@@ -438,4 +438,64 @@ describe("API route handlers", () => {
       expect(await res.json()).toMatchObject({ outcome: "rejected", reason: "order_not_found" });
     });
   });
+  describe("abuse protection", () => {
+    const order = {
+      name: "Guarded Server",
+      gameSlug: "minecraft-java",
+      ramGb: 4,
+      vcpu: 2,
+      storageGb: 20,
+      regionCode: "eu-ro",
+      billingPeriod: "MONTHLY",
+    };
+
+    it("refuses an order from an account with an unconfirmed email", async () => {
+      const user = await createUser({ verified: false });
+      auth.userId = user.id;
+
+      const res = await createServerRoute(post(order));
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ error: "email_not_verified" });
+      expect(await prisma.order.count({ where: { userId: user.id } })).toBe(0);
+    });
+
+    it("stops a burst of orders with 429 and says when to retry", async () => {
+      const user = await createUser();
+      auth.userId = user.id;
+
+      const statuses: number[] = [];
+      let last: Response | undefined;
+      for (let i = 0; i < 11; i += 1) {
+        last = await createServerRoute(post({ ...order, name: `Burst ${i}` }));
+        statuses.push(last.status);
+      }
+
+      expect(statuses.slice(0, 10).every((status) => status === 201)).toBe(true);
+      expect(statuses[10]).toBe(429);
+      expect(await last!.json()).toMatchObject({ error: "rate_limited" });
+      expect(Number(last!.headers.get("Retry-After"))).toBeGreaterThan(0);
+      // The refused request created nothing.
+      expect(await prisma.server.count({ where: { ownerId: user.id } })).toBe(10);
+    });
+
+    it("limits how fast coupon codes can be guessed, per address", async () => {
+      const guess = (ip: string) =>
+        couponRoute(
+          new Request("http://localhost/api", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-forwarded-for": ip },
+            body: JSON.stringify({ ...order, couponCode: "GUESS" }),
+          }),
+        );
+
+      const statuses: number[] = [];
+      for (let i = 0; i < 31; i += 1) statuses.push((await guess("198.51.100.7")).status);
+
+      expect(statuses.slice(0, 30).every((status) => status === 404)).toBe(true);
+      expect(statuses[30]).toBe(429);
+      // Somebody else is not affected.
+      expect((await guess("198.51.100.8")).status).toBe(404);
+    });
+  });
 });

@@ -19,6 +19,7 @@ export const authConfig = {
         token.id = user.id;
         token.role = user.role ?? "USER";
         token.locale = user.locale ?? "en";
+        token.sessionVersion = user.sessionVersion ?? 0;
       }
       if (trigger === "update" && session) {
         if (typeof session.name === "string") token.name = session.name;

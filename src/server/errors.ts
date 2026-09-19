@@ -21,6 +21,11 @@ export type AppErrorCode =
   | "subscription_not_found"
   | "nothing_due"
   | "payment_failed"
+  | "rate_limited"
+  | "invalid_token"
+  | "email_not_verified"
+  | "already_verified"
+  | "cannot_demote_self"
   | "not_found"
   | "validation";
 

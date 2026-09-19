@@ -223,7 +223,9 @@
       "coupon_exhausted": "Codul de reducere a fost folosit de numărul maxim de ori.",
       "coupon_already_used": "Ai folosit deja acest cod de reducere.",
       "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cupon.",
-      "payment_failed": "Plata a fost refuzată. Verifică metoda de plată."
+      "payment_failed": "Plata a fost refuzată. Verifică metoda de plată.",
+      "email_not_verified": "Confirmă adresa de email înainte să comanzi. Linkul este în inbox.",
+      "rate_limited": "Prea multe comenzi într-un timp scurt. Așteaptă câteva minute."
     },
     "coupon": {
       "label": "Cod de reducere",
@@ -238,7 +240,8 @@
         "coupon_exhausted": "Codul acesta a fost folosit de numărul maxim de ori.",
         "coupon_already_used": "Ai folosit deja acest cod.",
         "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cod.",
-        "internal_error": "Nu am putut verifica codul. Încearcă din nou."
+        "internal_error": "Nu am putut verifica codul. Încearcă din nou.",
+        "rate_limited": "Ai încercat prea multe coduri. Așteaptă un minut."
       }
     }
   },
@@ -251,7 +254,9 @@
       "submit": "Autentificare",
       "submitting": "Se autentifică…",
       "noAccount": "Nu ai cont încă?",
-      "register": "Creează unul"
+      "register": "Creează unul",
+      "forgot": "Ai uitat parola?",
+      "passwordChanged": "Parola a fost schimbată. Autentifică-te cu cea nouă."
     },
     "register": {
       "title": "Creează-ți contul",
@@ -273,9 +278,40 @@
     "errors": {
       "invalid_credentials": "Email sau parolă incorecte.",
       "email_taken": "Există deja un cont cu acest email.",
-      "validation": "Verifică câmpurile evidențiate.",
+      "validation": "Verifică formularul și încearcă din nou.",
       "passwords_mismatch": "Parolele nu coincid.",
-      "password_short": "Parola trebuie să aibă cel puțin 8 caractere."
+      "password_short": "Parola trebuie să aibă cel puțin 8 caractere.",
+      "rate_limited": "Prea multe încercări. Așteaptă puțin și încearcă din nou.",
+      "invalid_token": "Linkul a expirat sau a fost deja folosit. Cere unul nou.",
+      "internal_error": "Ceva nu a mers. Încearcă din nou."
+    },
+    "forgot": {
+      "title": "Ai uitat parola?",
+      "subtitle": "Introdu adresa de email și îți trimitem un link ca să alegi una nouă.",
+      "submit": "Trimite linkul de resetare",
+      "backToLogin": "Înapoi la autentificare",
+      "sentTitle": "Verifică-ți emailul",
+      "sentBody": "Dacă există un cont pentru această adresă, am trimis un link de resetare. Este valabil o oră."
+    },
+    "reset": {
+      "title": "Alege o parolă nouă",
+      "subtitle": "După schimbare vei fi deconectat de pe toate celelalte dispozitive.",
+      "newPassword": "Parola nouă",
+      "confirmPassword": "Confirmă parola nouă",
+      "submit": "Schimbă parola",
+      "doneTitle": "Parola a fost schimbată",
+      "doneBody": "Te poți autentifica acum cu parola nouă.",
+      "invalidTitle": "Acest link nu mai funcționează",
+      "invalidBody": "Linkurile de resetare expiră după o oră și pot fi folosite o singură dată. Cere unul nou și încearcă din nou.",
+      "requestNew": "Cere un link nou"
+    },
+    "verify": {
+      "title": "Confirmarea adresei de email",
+      "okTitle": "Email confirmat",
+      "okBody": "Mulțumim. Acum poți comanda servere.",
+      "failedTitle": "Acest link nu mai funcționează",
+      "failedBody": "Linkurile de confirmare expiră după 24 de ore și pot fi folosite o singură dată. Poți cere unul nou din panou.",
+      "continue": "Mergi la panou"
     }
   },
   "dashboard": {
@@ -508,7 +544,9 @@
       "pricing": "Prețuri",
       "users": "Utilizatori",
       "billing": "Facturare",
-      "coupons": "Cupoane"
+      "coupons": "Cupoane",
+      "emails": "Emailuri",
+      "audit": "Jurnal de audit"
     },
     "servers": {
       "title": "Toate serverele",
@@ -643,6 +681,45 @@
         "validation": "Verifică formularul.",
         "internal_error": "Ceva nu a mers."
       }
+    },
+    "emails": {
+      "hintOutbox": "Nu este configurat niciun server SMTP, așa că emailurile se păstrează doar aici. Deschide unul ca să-l citești și să-i urmezi linkurile.",
+      "hintSmtp": "Toate emailurile trimise de platformă, cu starea livrării.",
+      "date": "Data",
+      "to": "Către",
+      "subject": "Subiect",
+      "status": "Stare",
+      "preview": "Previzualizare",
+      "links": "Linkuri din acest email",
+      "empty": "Niciun email încă.",
+      "statuses": {
+        "LOGGED": "Doar în cutie",
+        "SENT": "Trimis",
+        "FAILED": "Eșuat"
+      }
+    },
+    "audit": {
+      "date": "Data",
+      "actor": "Admin",
+      "action": "Acțiune",
+      "target": "Țintă",
+      "details": "Detalii",
+      "ip": "Adresă IP",
+      "deletedUser": "cont șters",
+      "empty": "Nicio acțiune de admin înregistrată încă.",
+      "actions": {
+        "pricing.update": "Prețuri actualizate",
+        "game.upsert": "Joc salvat",
+        "game.delete": "Joc șters",
+        "region.upsert": "Regiune salvată",
+        "region.delete": "Regiune ștearsă",
+        "coupon.upsert": "Cupon salvat",
+        "coupon.delete": "Cupon șters",
+        "server.suspend": "Server suspendat",
+        "server.unsuspend": "Server reactivat",
+        "user.role": "Rol schimbat",
+        "billing.run": "Ciclu de facturare rulat"
+      }
     }
   },
   "errors": {
@@ -676,5 +753,16 @@
     },
     "tryAgain": "Înapoi la configurator",
     "goToBilling": "Mergi la facturare"
+  },
+  "verifyBanner": {
+    "message": "Confirmă adresa de email ({email}) înainte să comanzi un server.",
+    "resend": "Retrimite emailul",
+    "sent": "Am trimis emailul de confirmare la {email}.",
+    "sentShort": "Trimis",
+    "errors": {
+      "rate_limited": "Ai cerut asta deja de câteva ori. Încearcă mai târziu.",
+      "already_verified": "Adresa ta este deja confirmată. Reîncarcă pagina.",
+      "internal_error": "Nu am putut trimite emailul. Încearcă din nou."
+    }
   }
 }
