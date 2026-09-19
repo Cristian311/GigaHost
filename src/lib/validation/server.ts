@@ -37,6 +37,26 @@ export const renameServerSchema = z.object({
   name: z.string().trim().min(3).max(40),
 });
 
+export const resizeServerSchema = z.object({
+  ramGb: z
+    .number()
+    .int()
+    .min(RESOURCE_LIMITS.ram.min)
+    .max(RESOURCE_LIMITS.ram.max),
+  vcpu: z
+    .number()
+    .int()
+    .min(RESOURCE_LIMITS.cpu.min)
+    .max(RESOURCE_LIMITS.cpu.max),
+  storageGb: z
+    .number()
+    .int()
+    .min(RESOURCE_LIMITS.storage.min)
+    .max(RESOURCE_LIMITS.storage.max),
+});
+
+export type ResizeServerInput = z.infer<typeof resizeServerSchema>;
+
 export type ServerConfigInput = z.infer<typeof serverConfigSchema>;
 export type CreateServerInput = z.infer<typeof createServerSchema>;
 export type PowerAction = z.infer<typeof powerActionSchema>["action"];

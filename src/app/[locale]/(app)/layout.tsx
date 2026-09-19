@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { requireUser } from "@/server/auth-guard";
+
+/** Nothing behind the login should be indexed. */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AppLayout({ children }: LayoutProps<"/[locale]">) {
   const user = await requireUser();

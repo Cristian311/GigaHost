@@ -1,9 +1,14 @@
 import { prisma } from "@/lib/db";
-import { type Prisma, type ServerStatus } from "@/generated/prisma/client";
+import {
+  type Prisma,
+  type ServerEventType,
+  type ServerStatus,
+} from "@/generated/prisma/client";
 import { getProvider } from "@/server/providers";
 import type { ServerRef } from "@/server/providers/types";
 import { AppError } from "@/server/errors";
 import type { PowerAction } from "@/lib/validation/server";
+import { listEvents, recordEvent } from "./event-service";
 
 export const serverInclude = {
   game: true,
@@ -15,7 +20,7 @@ export type ServerWithRelations = Prisma.ServerGetPayload<{
   include: typeof serverInclude;
 }>;
 
-function toRef(server: ServerWithRelations): ServerRef | null {
+export function toRef(server: ServerWithRelations): ServerRef | null {
   if (!server.providerId) return null;
   return {
     providerId: server.providerId,
@@ -26,6 +31,15 @@ function toRef(server: ServerWithRelations): ServerRef | null {
   };
 }
 
+/** Activity-log entry produced when a lazy transition completes. */
+const COMPLETION_EVENTS: Partial<
+  Record<ServerStatus, Partial<Record<ServerStatus, ServerEventType>>>
+> = {
+  INSTALLING: { STOPPED: "INSTALLED" },
+  STARTING: { RUNNING: "STARTED" },
+  STOPPING: { STOPPED: "STOPPED" },
+};
+
 /** Asks the provider for the live status and persists it if it changed. */
 export async function syncStatus(
   server: ServerWithRelations,
@@ -34,11 +48,17 @@ export async function syncStatus(
   if (!ref) return server;
   const live = await getProvider().getStatus(ref);
   if (live === server.status) return server;
-  return prisma.server.update({
+
+  const updated = await prisma.server.update({
     where: { id: server.id },
     data: { status: live, statusChangedAt: new Date() },
     include: serverInclude,
   });
+
+  const eventType = COMPLETION_EVENTS[server.status]?.[live];
+  if (eventType) await recordEvent(server.id, eventType);
+
+  return updated;
 }
 
 export async function listServersForUser(userId: string) {
@@ -88,11 +108,23 @@ export async function powerServer(
   else if (action === "stop") await provider.stop(ref);
   else await provider.restart(ref);
 
-  return prisma.server.update({
+  const updated = await prisma.server.update({
     where: { id: server.id },
     data: { status: transition.to, statusChangedAt: new Date() },
     include: serverInclude,
   });
+
+  // start/stop are logged when the transition completes in syncStatus; a restart
+  // collapses to STARTING, so it is logged at request time instead.
+  if (action === "restart") await recordEvent(server.id, "RESTARTED");
+
+  return updated;
+}
+
+/** Activity log for a server the user owns. */
+export async function getServerEvents(serverId: string, userId: string, limit = 50) {
+  await getServerForUser(serverId, userId);
+  return listEvents(serverId, limit);
 }
 
 export async function renameServer(serverId: string, userId: string, name: string) {
@@ -119,6 +151,8 @@ export async function deleteServer(serverId: string, userId: string) {
       data: { status: "CANCELLED", cancelAtPeriodEnd: false },
     }),
   ]);
+
+  await recordEvent(server.id, "DELETED", server.name);
 }
 
 export async function getServerUsage(serverId: string, userId: string) {
@@ -174,7 +208,7 @@ export async function provisionServer(params: {
       regionCode: params.regionCode,
     });
 
-    return prisma.server.update({
+    const provisioned = await prisma.server.update({
       where: { id: server.id },
       data: {
         providerId: result.providerId,
@@ -185,11 +219,22 @@ export async function provisionServer(params: {
       },
       include: serverInclude,
     });
+
+    await recordEvent(server.id, "CREATED", params.name, {
+      gameSlug: params.gameSlug,
+      regionCode: params.regionCode,
+      ramGb: params.ramGb,
+      vcpu: params.vcpu,
+      storageGb: params.storageGb,
+    });
+
+    return provisioned;
   } catch (error) {
     await prisma.server.update({
       where: { id: server.id },
       data: { status: "ERROR", statusChangedAt: new Date() },
     });
+    await recordEvent(server.id, "ERROR", "Provisioning failed");
     throw error;
   }
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { PricingConfig } from "@/generated/prisma/client";
+import type { Game, PricingConfig } from "@/generated/prisma/client";
 import { calculatePrice } from "@/lib/pricing/calculate-price";
 import type { PriceBreakdown, PricingTable } from "@/lib/pricing/types";
 import type { ServerConfigInput } from "@/lib/validation/server";
@@ -61,6 +61,24 @@ export type Quote = {
   pricing: PricingConfig;
 };
 
+/** Throws `below_minimum` when a configuration is under the game's requirements. */
+export function assertMeetsMinimums(
+  game: Pick<Game, "minRamGb" | "minCpu" | "minStorageGb">,
+  config: { ramGb: number; vcpu: number; storageGb: number },
+) {
+  if (
+    config.ramGb < game.minRamGb ||
+    config.vcpu < game.minCpu ||
+    config.storageGb < game.minStorageGb
+  ) {
+    throw new AppError("below_minimum", 400, undefined, {
+      minRamGb: game.minRamGb,
+      minCpu: game.minCpu,
+      minStorageGb: game.minStorageGb,
+    });
+  }
+}
+
 /**
  * Validates a configuration against the catalog and computes an authoritative
  * price. Used by both the quote endpoint and the checkout, so the client can
@@ -77,17 +95,7 @@ export async function quote(input: ServerConfigInput): Promise<Quote> {
   if (!game.available) throw new AppError("game_unavailable", 400);
   if (!region || !region.active) throw new AppError("region_not_found", 404);
 
-  if (
-    input.ramGb < game.minRamGb ||
-    input.vcpu < game.minCpu ||
-    input.storageGb < game.minStorageGb
-  ) {
-    throw new AppError("below_minimum", 400, undefined, {
-      minRamGb: game.minRamGb,
-      minCpu: game.minCpu,
-      minStorageGb: game.minStorageGb,
-    });
-  }
+  assertMeetsMinimums(game, input);
 
   const breakdown = calculatePrice(
     {

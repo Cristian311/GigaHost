@@ -31,15 +31,30 @@ Admin login after seeding: `admin@gigahost.local` / `admin1234`.
 
 Useful scripts:
 
-| Script              | What it does                                  |
-| ------------------- | --------------------------------------------- |
-| `npm run dev`       | dev server                                    |
-| `npm run build`     | production build                              |
-| `npm run test`      | vitest unit tests                             |
-| `npm run typecheck` | `tsc --noEmit`                                |
-| `npm run lint`      | eslint                                        |
-| `npm run db:studio` | Prisma Studio (browse the DB)                 |
-| `npm run db:reset`  | drop, migrate and seed again                  |
+| Script                     | What it does                                        |
+| -------------------------- | --------------------------------------------------- |
+| `npm run dev`              | dev server                                          |
+| `npm run build`            | production build                                    |
+| `npm test`                 | all tests (unit + integration)                      |
+| `npm run test:unit`        | pure-function tests only (pricing, proration)       |
+| `npm run test:integration` | services + API against a throwaway SQLite database  |
+| `npm run typecheck`        | `tsc --noEmit`                                      |
+| `npm run lint`             | eslint                                              |
+| `npm run db:studio`        | Prisma Studio (browse the DB)                       |
+| `npm run db:reset`         | drop, migrate and seed again                        |
+
+## Tests
+
+`npm test` runs two projects. **unit** covers the pure pricing and proration
+engines. **integration** spins up a disposable SQLite database in `tests/.tmp/`,
+applies the schema, seeds the catalog and then exercises the real services and
+route handlers: checkout, the server state machine, resizing with proration,
+backups, the activity log, subscriptions, admin actions and the SEO routes.
+Nothing is mocked except the session in `tests/integration/api.test.ts`.
+
+Time-based behaviour (installing, starting, backups completing) is tested by
+moving `statusChangedAt` into the past rather than waiting, so the suite runs in
+under 30 seconds.
 
 ## Architecture
 
@@ -68,6 +83,15 @@ prisma/            schema, migrations, seed
 
 **Money flow (simulated).** Checkout → Order (PAID) → Invoice (PAID) → Server provisioned → Subscription (ACTIVE). Replacing the "mark as paid" step with a Stripe webhook is the only change needed for real payments.
 
+**Resizing.** Changing RAM, CPU or storage mid-period is priced by `prorate()`
+(`src/lib/pricing/prorate.ts`): only the unused share of the paid period is
+re-priced. Upgrades are invoiced immediately; downgrades are never refunded but
+accumulate as `Subscription.creditCents` for the next renewal.
+
+**Activity log.** Every meaningful change writes a `ServerEvent`
+(`src/server/services/event-service.ts`): creation, the lazy state transitions,
+restarts, resizes, backup operations, suspension and deletion.
+
 ## Switching to PostgreSQL
 
 1. `docker compose up -d` (or any Postgres instance)
@@ -78,10 +102,13 @@ prisma/            schema, migrations, seed
 
 ## Roadmap
 
+- [x] Resource upgrades/downgrades with pro-rating
+- [x] Backups (simulated) and a per-server activity log
+- [x] Admin: all servers, suspension, regions
+- [x] SEO: sitemap, robots, Open Graph images, hreflang alternates
 - [ ] Stripe Checkout + webhooks (replace mock checkout in `order-service.ts`)
 - [ ] `PterodactylProvider` (Panel Application API + Wings nodes)
-- [ ] Resource upgrades/downgrades with pro-rating
-- [ ] Backups, file manager, scheduled tasks
+- [ ] File manager and scheduled tasks
 - [ ] Email verification & password reset
 - [ ] Rate limiting and audit logs
 

@@ -6,10 +6,17 @@ import {
   createServerSchema,
   powerActionSchema,
   renameServerSchema,
+  resizeServerSchema,
 } from "@/lib/validation/server";
 import { requireUser } from "@/server/auth-guard";
 import { AppError } from "@/server/errors";
-import { checkoutMock } from "@/server/services/order-service";
+import { checkoutMock, setCancelAtPeriodEnd } from "@/server/services/order-service";
+import {
+  createBackup,
+  deleteBackup,
+  restoreBackup,
+} from "@/server/services/backup-service";
+import { previewResize, resizeServer, type ResizePreview } from "@/server/services/resize-service";
 import {
   deleteServer,
   powerServer,
@@ -79,6 +86,103 @@ export async function deleteServerAction(serverId: string): Promise<ActionResult
   const user = await requireUser();
   try {
     await deleteServer(serverId, user.id);
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+// --- resize -----------------------------------------------------------------
+
+export async function previewResizeAction(
+  serverId: string,
+  input: unknown,
+): Promise<ActionResult<ResizePreview>> {
+  const user = await requireUser();
+  try {
+    const config = resizeServerSchema.parse(input);
+    return { ok: true, data: await previewResize(serverId, user.id, config) };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function resizeServerAction(
+  serverId: string,
+  input: unknown,
+): Promise<ActionResult<{ chargeCents: number; creditCents: number }>> {
+  const user = await requireUser();
+  try {
+    const config = resizeServerSchema.parse(input);
+    const result = await resizeServer(serverId, user.id, config);
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      data: {
+        chargeCents: result.preview.proration.chargeCents,
+        creditCents: result.preview.proration.creditCents,
+      },
+    };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+// --- backups ----------------------------------------------------------------
+
+export async function createBackupAction(
+  serverId: string,
+  name?: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await createBackup(serverId, user.id, name);
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function restoreBackupAction(
+  serverId: string,
+  backupId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await restoreBackup(serverId, user.id, backupId);
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function deleteBackupAction(
+  serverId: string,
+  backupId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await deleteBackup(serverId, user.id, backupId);
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+// --- subscription -----------------------------------------------------------
+
+export async function setCancelAtPeriodEndAction(
+  subscriptionId: string,
+  cancel: boolean,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    const result = await setCancelAtPeriodEnd(subscriptionId, user.id, cancel);
+    if (!result) return { ok: false, error: "not_found" };
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
   } catch (error) {

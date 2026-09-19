@@ -39,6 +39,9 @@ yarn-error.log*
 *.db-journal
 /src/generated/
 
+# test artifacts
+/tests/.tmp/
+
 # vercel
 .vercel
 

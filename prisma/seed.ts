@@ -1,5 +1,8 @@
 import { hash } from "bcryptjs";
-import { prisma } from "../src/lib/db";
+import type { PrismaClient } from "../src/generated/prisma/client";
+
+export const ADMIN_EMAIL = "admin@gigahost.local";
+export const ADMIN_PASSWORD = "admin1234";
 
 type GameSeed = {
   slug: string;
@@ -172,8 +175,10 @@ const regions = [
   { code: "us-east", name: "New York", country: "United States", flag: "🇺🇸", priceMultiplier: 1.15, sortOrder: 3 },
 ];
 
-async function main() {
-  console.log("Seeding games…");
+/** Idempotent seed used by `prisma db seed` and by the integration test setup. */
+export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}) {
+  const log = options.log === false ? () => {} : console.log;
+  log("Seeding games…");
   for (const [index, game] of games.entries()) {
     const { versions, available = true, unavailableReason = null, ...rest } = game;
     await prisma.game.upsert({
@@ -197,7 +202,7 @@ async function main() {
     });
   }
 
-  console.log("Seeding regions…");
+  log("Seeding regions…");
   for (const region of regions) {
     await prisma.region.upsert({
       where: { code: region.code },
@@ -206,7 +211,7 @@ async function main() {
     });
   }
 
-  console.log("Seeding pricing…");
+  log("Seeding pricing…");
   const existingPricing = await prisma.pricingConfig.findFirst({ where: { active: true } });
   if (!existingPricing) {
     await prisma.pricingConfig.create({
@@ -224,14 +229,13 @@ async function main() {
     });
   }
 
-  console.log("Seeding admin user…");
-  const adminEmail = "admin@gigahost.local";
-  const passwordHash = await hash("admin1234", 10);
+  log("Seeding admin user…");
+  const passwordHash = await hash(ADMIN_PASSWORD, 10);
   await prisma.user.upsert({
-    where: { email: adminEmail },
+    where: { email: ADMIN_EMAIL },
     update: { role: "ADMIN" },
     create: {
-      email: adminEmail,
+      email: ADMIN_EMAIL,
       name: "GigaHost Admin",
       passwordHash,
       role: "ADMIN",
@@ -239,14 +243,20 @@ async function main() {
     },
   });
 
-  console.log("Done. Admin login: admin@gigahost.local / admin1234");
+  log(`Done. Admin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
+// Run directly via `prisma db seed` / `tsx prisma/seed.ts`; skipped when imported by tests.
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed.ts");
+if (isDirectRun) {
+  import("../src/lib/db").then(async ({ prisma }) => {
+    try {
+      await seed(prisma);
+    } catch (error) {
+      console.error(error);
+      process.exit(1);
+    } finally {
+      await prisma.$disconnect();
+    }
   });
+}

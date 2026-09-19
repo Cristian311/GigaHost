@@ -25,15 +25,40 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "GigaHost — Game server hosting",
-    template: "%s · GigaHost",
-  },
-  description:
-    "Rent high-performance game servers for Minecraft, Rust, Valheim, CS2 and more. Configure RAM, CPU and storage and go online in under a minute.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
-};
+const DESCRIPTION =
+  "Rent high-performance game servers for Minecraft, Rust, Valheim, CS2 and more. Configure RAM, CPU and storage and go online in under a minute.";
+
+export async function generateMetadata({
+  params,
+}: LayoutProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    title: {
+      default: "GigaHost — Game server hosting",
+      template: "%s · GigaHost",
+    },
+    description: DESCRIPTION,
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+    alternates: {
+      canonical: `/${locale}`,
+      languages: Object.fromEntries(routing.locales.map((l) => [l, `/${l}`])),
+    },
+    openGraph: {
+      type: "website",
+      siteName: "GigaHost",
+      locale,
+      url: `/${locale}`,
+      title: "GigaHost — Game server hosting",
+      description: DESCRIPTION,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "GigaHost — Game server hosting",
+      description: DESCRIPTION,
+    },
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

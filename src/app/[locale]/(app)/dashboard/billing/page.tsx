@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getFormatter, getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { SubscriptionActions } from "@/components/dashboard/subscription-actions";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -74,6 +75,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                 <TableHead>{t("amount")}</TableHead>
                 <TableHead>{t("nextRenewal")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,6 +102,14 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                   </TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[sub.status]}>{t(`statuses.${sub.status}`)}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {sub.status === "ACTIVE" || sub.status === "PAST_DUE" ? (
+                      <SubscriptionActions
+                        subscriptionId={sub.id}
+                        cancelAtPeriodEnd={sub.cancelAtPeriodEnd}
+                      />
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}

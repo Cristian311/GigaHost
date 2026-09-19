@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { Logo } from "@/components/layout/logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function AuthLayout({ children }: LayoutProps<"/[locale]">) {
   return (

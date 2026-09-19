@@ -1,5 +1,6 @@
 import { MOCK_TIMINGS } from "@/lib/constants";
 import type {
+  BackupResult,
   ConsoleLine,
   ProviderStatus,
   ProvisionInput,
@@ -63,6 +64,19 @@ export class MockProvider implements ServerProvider {
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   async restart(): Promise<void> {}
+
+  async createBackup(ref: ServerRef, name: string): Promise<BackupResult> {
+    const rand = mulberry32(hashString(`${ref.providerId}:${name}:${Date.now()}`));
+    // Between roughly 3 % and 12 % of the disk, deterministic per request.
+    const sizeMb = Math.max(
+      12,
+      Math.round(ref.storageGb * 1024 * (0.03 + rand() * 0.09)),
+    );
+    return { providerBackupId: `mockbk_${Math.floor(rand() * 1e9).toString(36)}`, sizeMb };
+  }
+
+  async restoreBackup(): Promise<void> {}
+  async deleteBackup(): Promise<void> {}
 
   async getStatus(ref: ServerRef): Promise<ProviderStatus> {
     const elapsed = Date.now() - ref.statusChangedAt.getTime();

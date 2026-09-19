@@ -4,7 +4,10 @@ import type { z } from "zod";
 import type {
   pricingConfigSchema,
   upsertGameSchema,
+  upsertRegionSchema,
 } from "@/lib/validation/admin";
+import { AppError } from "@/server/errors";
+import { recordEvent } from "./event-service";
 
 export async function getAdminStats() {
   const [users, servers, runningServers, orders, revenue] = await Promise.all([
@@ -65,6 +68,89 @@ export async function upsertGame(data: z.infer<typeof upsertGameSchema>) {
     return prisma.game.update({ where: { id }, data: payload });
   }
   return prisma.game.create({ data: payload });
+}
+
+// --- servers ---------------------------------------------------------------
+
+export async function listAllServers() {
+  return prisma.server.findMany({
+    where: { status: { not: "DELETED" } },
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+      game: { select: { name: true, slug: true } },
+      region: { select: { name: true, flag: true, code: true } },
+      subscription: { select: { status: true, currentPeriodEnd: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** Takes a server offline for non-payment or abuse; blocks all power actions. */
+export async function suspendServer(serverId: string, reason?: string) {
+  const server = await prisma.server.findUnique({ where: { id: serverId } });
+  if (!server || server.status === "DELETED") throw new AppError("server_not_found", 404);
+  if (server.status === "SUSPENDED") {
+    throw new AppError("invalid_transition", 409, "Server is already suspended.");
+  }
+
+  const [updated] = await prisma.$transaction([
+    prisma.server.update({
+      where: { id: serverId },
+      data: { status: "SUSPENDED", statusChangedAt: new Date() },
+    }),
+    prisma.subscription.updateMany({
+      where: { serverId, status: "ACTIVE" },
+      data: { status: "PAST_DUE" },
+    }),
+  ]);
+
+  await recordEvent(serverId, "SUSPENDED", reason);
+  return updated;
+}
+
+export async function unsuspendServer(serverId: string) {
+  const server = await prisma.server.findUnique({ where: { id: serverId } });
+  if (!server || server.status === "DELETED") throw new AppError("server_not_found", 404);
+  if (server.status !== "SUSPENDED") {
+    throw new AppError("invalid_transition", 409, "Server is not suspended.");
+  }
+
+  const [updated] = await prisma.$transaction([
+    prisma.server.update({
+      where: { id: serverId },
+      data: { status: "STOPPED", statusChangedAt: new Date() },
+    }),
+    prisma.subscription.updateMany({
+      where: { serverId, status: "PAST_DUE" },
+      data: { status: "ACTIVE" },
+    }),
+  ]);
+
+  await recordEvent(serverId, "UNSUSPENDED");
+  return updated;
+}
+
+// --- regions ---------------------------------------------------------------
+
+export async function listRegions() {
+  return prisma.region.findMany({ orderBy: { sortOrder: "asc" } });
+}
+
+export async function upsertRegion(data: z.infer<typeof upsertRegionSchema>) {
+  const { id, ...rest } = data;
+  if (id) return prisma.region.update({ where: { id }, data: rest });
+  return prisma.region.create({ data: rest });
+}
+
+export async function deleteRegion(id: string) {
+  const inUse = await prisma.server.count({
+    where: { regionId: id, status: { not: "DELETED" } },
+  });
+  if (inUse > 0) {
+    // Keep referential integrity: hide it from the configurator instead.
+    return prisma.region.update({ where: { id }, data: { active: false } });
+  }
+  return prisma.region.delete({ where: { id } });
 }
 
 export async function deleteGame(id: string) {

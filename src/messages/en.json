@@ -313,6 +313,86 @@
         "server_not_found": "Server not found.",
         "internal_error": "Something went wrong. Please try again."
       }
+    },
+    "tabs": {
+      "overview": "Overview",
+      "backups": "Backups",
+      "activity": "Activity"
+    },
+    "resize": {
+      "title": "Change resources",
+      "button": "Resize",
+      "description": "Adjust RAM, CPU and storage. You only pay the difference for the time left in the current period.",
+      "current": "Current",
+      "new": "New",
+      "monthlyNow": "Monthly now",
+      "monthlyAfter": "Monthly after",
+      "remaining": "Remaining in this period",
+      "dueNow": "Due now",
+      "credit": "Credit for next renewal",
+      "noChargeHint": "Downgrades are not refunded; the difference is credited to your next invoice.",
+      "confirm": "Apply changes",
+      "applying": "Applying…",
+      "success": "Resources updated.",
+      "charged": "Charged {amount}.",
+      "credited": "{amount} credited to your next invoice.",
+      "onlyWhenStable": "Stop or start the server first; resizing is unavailable during a transition.",
+      "errors": {
+        "no_change": "Pick a different configuration than the current one.",
+        "below_minimum": "That is below the game's minimum requirements.",
+        "invalid_transition": "The server must be stopped or running to resize it.",
+        "server_not_found": "Server not found.",
+        "validation": "Please check the values and try again.",
+        "internal_error": "Something went wrong. Please try again."
+      }
+    },
+    "backups": {
+      "title": "Backups",
+      "description": "Up to {max} snapshots per server. Restoring requires the server to be stopped.",
+      "create": "Create backup",
+      "creating": "Creating…",
+      "namePlaceholder": "Backup name (optional)",
+      "name": "Name",
+      "size": "Size",
+      "created": "Created",
+      "status": "Status",
+      "restore": "Restore",
+      "delete": "Delete",
+      "empty": "No backups yet.",
+      "confirmRestore": "Restore this backup? The current world will be replaced.",
+      "confirmDelete": "Delete this backup permanently?",
+      "statuses": {
+        "CREATING": "Creating",
+        "COMPLETED": "Ready",
+        "RESTORING": "Restoring",
+        "FAILED": "Failed"
+      },
+      "errors": {
+        "backup_limit": "You reached the maximum number of backups. Delete one first.",
+        "backup_not_found": "Backup not found.",
+        "invalid_transition": "Stop the server before restoring a backup.",
+        "server_not_found": "Server not found.",
+        "internal_error": "Something went wrong. Please try again."
+      }
+    },
+    "events": {
+      "title": "Activity",
+      "empty": "No activity recorded yet.",
+      "types": {
+        "CREATED": "Server created",
+        "INSTALLED": "Installation finished",
+        "STARTED": "Server started",
+        "STOPPED": "Server stopped",
+        "RESTARTED": "Server restarted",
+        "RESIZED": "Resources changed",
+        "BACKUP_CREATED": "Backup created",
+        "BACKUP_RESTORED": "Backup restored",
+        "BACKUP_DELETED": "Backup deleted",
+        "SUSPENDED": "Server suspended",
+        "UNSUSPENDED": "Server reactivated",
+        "DELETED": "Server deleted",
+        "ERROR": "Error"
+      }
     }
   },
   "billing": {
@@ -376,8 +456,41 @@
     "nav": {
       "overview": "Overview",
       "games": "Games",
+      "regions": "Regions",
+      "servers": "Servers",
       "pricing": "Pricing",
       "users": "Users"
+    },
+    "servers": {
+      "title": "All servers",
+      "name": "Server",
+      "owner": "Owner",
+      "game": "Game",
+      "region": "Region",
+      "resources": "Resources",
+      "status": "Status",
+      "created": "Created",
+      "suspend": "Suspend",
+      "unsuspend": "Reactivate",
+      "suspendTitle": "Suspend this server?",
+      "suspendDesc": "The server goes offline and the owner cannot start it again until you reactivate it.",
+      "reason": "Reason (optional)",
+      "empty": "No servers yet."
+    },
+    "regions": {
+      "title": "Regions",
+      "add": "Add region",
+      "edit": "Edit region",
+      "code": "Code",
+      "name": "Name",
+      "country": "Country",
+      "flag": "Flag emoji",
+      "priceMultiplier": "Price multiplier",
+      "active": "Available for new servers",
+      "sortOrder": "Sort order",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this region? If servers use it, it will be deactivated instead.",
+      "saved": "Region saved."
     },
     "stats": {
       "users": "Users",

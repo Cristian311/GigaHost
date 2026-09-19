@@ -313,6 +313,86 @@
         "server_not_found": "Serverul nu a fost găsit.",
         "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
       }
+    },
+    "tabs": {
+      "overview": "Prezentare",
+      "backups": "Backup-uri",
+      "activity": "Activitate"
+    },
+    "resize": {
+      "title": "Schimbă resursele",
+      "button": "Redimensionează",
+      "description": "Ajustează RAM, CPU și stocarea. Plătești doar diferența pentru timpul rămas din perioada curentă.",
+      "current": "Acum",
+      "new": "Nou",
+      "monthlyNow": "Lunar acum",
+      "monthlyAfter": "Lunar după",
+      "remaining": "Rămas din perioadă",
+      "dueNow": "De plată acum",
+      "credit": "Credit pentru reînnoire",
+      "noChargeHint": "Downgrade-urile nu se returnează; diferența se trece ca credit pe următoarea factură.",
+      "confirm": "Aplică modificările",
+      "applying": "Se aplică…",
+      "success": "Resurse actualizate.",
+      "charged": "S-au perceput {amount}.",
+      "credited": "{amount} trecute ca credit pe următoarea factură.",
+      "onlyWhenStable": "Oprește sau pornește serverul mai întâi; redimensionarea nu e disponibilă în timpul unei tranziții.",
+      "errors": {
+        "no_change": "Alege o configurație diferită de cea curentă.",
+        "below_minimum": "Este sub cerințele minime ale jocului.",
+        "invalid_transition": "Serverul trebuie să fie oprit sau pornit pentru redimensionare.",
+        "server_not_found": "Serverul nu a fost găsit.",
+        "validation": "Verifică valorile și încearcă din nou.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      }
+    },
+    "backups": {
+      "title": "Backup-uri",
+      "description": "Maximum {max} copii per server. Restaurarea cere ca serverul să fie oprit.",
+      "create": "Creează backup",
+      "creating": "Se creează…",
+      "namePlaceholder": "Numele backup-ului (opțional)",
+      "name": "Nume",
+      "size": "Dimensiune",
+      "created": "Creat",
+      "status": "Status",
+      "restore": "Restaurează",
+      "delete": "Șterge",
+      "empty": "Niciun backup încă.",
+      "confirmRestore": "Restaurezi acest backup? Lumea curentă va fi înlocuită.",
+      "confirmDelete": "Ștergi definitiv acest backup?",
+      "statuses": {
+        "CREATING": "Se creează",
+        "COMPLETED": "Gata",
+        "RESTORING": "Se restaurează",
+        "FAILED": "Eșuat"
+      },
+      "errors": {
+        "backup_limit": "Ai atins numărul maxim de backup-uri. Șterge unul mai întâi.",
+        "backup_not_found": "Backup-ul nu a fost găsit.",
+        "invalid_transition": "Oprește serverul înainte de a restaura un backup.",
+        "server_not_found": "Serverul nu a fost găsit.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      }
+    },
+    "events": {
+      "title": "Activitate",
+      "empty": "Nicio activitate înregistrată încă.",
+      "types": {
+        "CREATED": "Server creat",
+        "INSTALLED": "Instalare finalizată",
+        "STARTED": "Server pornit",
+        "STOPPED": "Server oprit",
+        "RESTARTED": "Server repornit",
+        "RESIZED": "Resurse modificate",
+        "BACKUP_CREATED": "Backup creat",
+        "BACKUP_RESTORED": "Backup restaurat",
+        "BACKUP_DELETED": "Backup șters",
+        "SUSPENDED": "Server suspendat",
+        "UNSUSPENDED": "Server reactivat",
+        "DELETED": "Server șters",
+        "ERROR": "Eroare"
+      }
     }
   },
   "billing": {
@@ -376,8 +456,41 @@
     "nav": {
       "overview": "Prezentare",
       "games": "Jocuri",
+      "regions": "Regiuni",
+      "servers": "Servere",
       "pricing": "Prețuri",
       "users": "Utilizatori"
+    },
+    "servers": {
+      "title": "Toate serverele",
+      "name": "Server",
+      "owner": "Proprietar",
+      "game": "Joc",
+      "region": "Regiune",
+      "resources": "Resurse",
+      "status": "Status",
+      "created": "Creat",
+      "suspend": "Suspendă",
+      "unsuspend": "Reactivează",
+      "suspendTitle": "Suspenzi acest server?",
+      "suspendDesc": "Serverul trece offline, iar proprietarul nu îl mai poate porni până nu îl reactivezi.",
+      "reason": "Motiv (opțional)",
+      "empty": "Niciun server încă."
+    },
+    "regions": {
+      "title": "Regiuni",
+      "add": "Adaugă regiune",
+      "edit": "Editează regiunea",
+      "code": "Cod",
+      "name": "Nume",
+      "country": "Țară",
+      "flag": "Emoji steag",
+      "priceMultiplier": "Multiplicator de preț",
+      "active": "Disponibilă pentru servere noi",
+      "sortOrder": "Ordine",
+      "delete": "Șterge",
+      "deleteConfirm": "Ștergi această regiune? Dacă există servere care o folosesc, va fi doar dezactivată.",
+      "saved": "Regiune salvată."
     },
     "stats": {
       "users": "Utilizatori",

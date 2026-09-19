@@ -9,7 +9,9 @@ export function AdminNav() {
   const pathname = usePathname();
   const items = [
     { href: "/admin", label: t("overview") },
+    { href: "/admin/servers", label: t("servers") },
     { href: "/admin/games", label: t("games") },
+    { href: "/admin/regions", label: t("regions") },
     { href: "/admin/pricing", label: t("pricing") },
     { href: "/admin/users", label: t("users") },
   ];

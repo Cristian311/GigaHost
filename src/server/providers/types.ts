@@ -60,6 +60,11 @@ export type ConsoleLine = {
   text: string;
 };
 
+export type BackupResult = {
+  providerBackupId: string;
+  sizeMb: number;
+};
+
 export interface ServerProvider {
   readonly name: string;
   createServer(input: ProvisionInput): Promise<ProvisionResult>;
@@ -71,4 +76,7 @@ export interface ServerProvider {
   getStatus(ref: ServerRef): Promise<ProviderStatus>;
   getUsage(ref: ServerRef): Promise<ResourceUsage>;
   getConsoleLines(ref: ServerRef, limit?: number): Promise<ConsoleLine[]>;
+  createBackup(ref: ServerRef, name: string): Promise<BackupResult>;
+  restoreBackup(ref: ServerRef, providerBackupId: string): Promise<void>;
+  deleteBackup(ref: ServerRef, providerBackupId: string): Promise<void>;
 }

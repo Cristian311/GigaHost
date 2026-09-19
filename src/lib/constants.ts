@@ -12,4 +12,8 @@ export const MOCK_TIMINGS = {
   installing: 10_000,
   starting: 5_000,
   stopping: 3_000,
+  backup: 5_000,
 } as const;
+
+/** Backups kept per server before the oldest must be removed. */
+export const MAX_BACKUPS_PER_SERVER = 5;

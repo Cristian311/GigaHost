@@ -63,6 +63,34 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum OrderKind {
+  NEW
+  RESIZE
+}
+
+enum BackupStatus {
+  CREATING
+  COMPLETED
+  RESTORING
+  FAILED
+}
+
+enum ServerEventType {
+  CREATED
+  INSTALLED
+  STARTED
+  STOPPED
+  RESTARTED
+  RESIZED
+  BACKUP_CREATED
+  BACKUP_RESTORED
+  BACKUP_DELETED
+  SUSPENDED
+  UNSUSPENDED
+  DELETED
+  ERROR
+}
+
 // ---------------------------------------------------------------------------
 // Users & Auth.js
 // ---------------------------------------------------------------------------
@@ -217,8 +245,43 @@ model Server {
   region       Region        @relation(fields: [regionId], references: [id])
   subscription Subscription?
   orders       Order[]
+  backups      Backup[]
+  events       ServerEvent[]
 
   @@index([ownerId])
+}
+
+/// Simulated (Phase 1) or real (Phase 2) server backups.
+model Backup {
+  id                String       @id @default(cuid())
+  serverId          String
+  name              String
+  sizeMb            Int          @default(0)
+  status            BackupStatus @default(CREATING)
+  /// Identifier on the provisioning backend.
+  providerBackupId  String?
+  statusChangedAt   DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  completedAt       DateTime?
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+}
+
+/// Activity log shown on the server page.
+model ServerEvent {
+  id        String          @id @default(cuid())
+  serverId  String
+  type      ServerEventType
+  message   String?
+  /// JSON payload with extra details (e.g. old/new resources).
+  meta      String?
+  createdAt DateTime        @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +292,7 @@ model Order {
   id             String        @id @default(cuid())
   userId         String
   serverId       String?
+  kind           OrderKind     @default(NEW)
   status         OrderStatus   @default(PENDING)
   billingPeriod  BillingPeriod
   /// JSON snapshot of the configuration at order time.
@@ -256,6 +320,8 @@ model Subscription {
   status             SubscriptionStatus @default(ACTIVE)
   billingPeriod      BillingPeriod
   amountCents        Int
+  /// Credit accumulated from downgrades, applied at the next renewal.
+  creditCents        Int                @default(0)
   currency           String             @default("EUR")
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime

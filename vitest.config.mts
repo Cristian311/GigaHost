@@ -1,14 +1,37 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
+const alias = { "@": path.resolve(import.meta.dirname, "./src") };
+
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
+    projects: [
+      {
+        resolve: { alias },
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          globalSetup: ["./tests/setup/global.ts"],
+          // The suites share one SQLite file, so they must not run concurrently.
+          fileParallelism: false,
+          env: {
+            DATABASE_URL: "file:./tests/.tmp/test.db",
+            SERVER_PROVIDER: "mock",
+            AUTH_SECRET: "test-secret-value-for-integration-tests",
+            NEXT_PUBLIC_APP_URL: "https://gigahost.test",
+          },
+          testTimeout: 20_000,
+        },
+      },
+    ],
   },
 });

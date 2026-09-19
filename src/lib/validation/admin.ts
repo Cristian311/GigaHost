@@ -34,6 +34,27 @@ export const upsertGameSchema = z.object({
   sortOrder: z.number().int().min(0).max(1000),
 });
 
+export const upsertRegionSchema = z.object({
+  id: z.string().optional(),
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(32)
+    .regex(/^[a-z0-9-]+$/, "code_format"),
+  name: z.string().trim().min(2).max(60),
+  country: z.string().trim().min(2).max(60),
+  flag: z.string().trim().min(1).max(8),
+  priceMultiplier: z.number().min(0.1).max(5),
+  active: z.boolean(),
+  sortOrder: z.number().int().min(0).max(1000),
+});
+
+export const suspendServerSchema = z.object({
+  serverId: z.string().min(1),
+  reason: z.string().trim().max(200).optional(),
+});
+
 export const setUserRoleSchema = z.object({
   userId: z.string().min(1),
   role: z.enum(["USER", "ADMIN"]),

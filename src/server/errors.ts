@@ -8,6 +8,9 @@ export type AppErrorCode =
   | "email_taken"
   | "invalid_credentials"
   | "pricing_missing"
+  | "no_change"
+  | "backup_limit"
+  | "backup_not_found"
   | "not_found"
   | "validation";
 

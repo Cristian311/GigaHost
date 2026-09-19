@@ -1,4 +1,5 @@
 import type {
+  BackupResult,
   ConsoleLine,
   ProviderStatus,
   ProvisionResult,
@@ -61,5 +62,14 @@ export class PterodactylProvider implements ServerProvider {
   }
   getConsoleLines(): Promise<ConsoleLine[]> {
     return this.notImplemented("getConsoleLines");
+  }
+  createBackup(): Promise<BackupResult> {
+    return this.notImplemented("createBackup");
+  }
+  restoreBackup(): Promise<void> {
+    return this.notImplemented("restoreBackup");
+  }
+  deleteBackup(): Promise<void> {
+    return this.notImplemented("deleteBackup");
   }
 }

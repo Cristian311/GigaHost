@@ -5,7 +5,7 @@ import type { CreateServerInput } from "@/lib/validation/server";
 import { quote } from "./pricing-service";
 import { provisionServer } from "./server-service";
 
-async function nextInvoiceNumber(): Promise<string> {
+export async function nextInvoiceNumber(): Promise<string> {
   const year = new Date().getUTCFullYear();
   const count = await prisma.invoice.count({
     where: { number: { startsWith: `GH-${year}-` } },

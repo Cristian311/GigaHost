@@ -4,19 +4,24 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Cpu, HardDrive, MemoryStick } from "lucide-react";
 import { getFormatter, getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { CopyButton } from "@/components/copy-button";
+import { BackupsPanel } from "@/components/dashboard/backups-panel";
+import { EventsList } from "@/components/dashboard/events-list";
 import { LivePanel } from "@/components/dashboard/live-panel";
 import { PowerControls } from "@/components/dashboard/power-controls";
+import { ResizeDialog } from "@/components/dashboard/resize-dialog";
 import { ServerActionsMenu } from "@/components/dashboard/server-actions-menu";
 import { ServerStatusBadge } from "@/components/dashboard/server-status-badge";
+import { ServerTabs } from "@/components/dashboard/server-tabs";
+import { SubscriptionActions } from "@/components/dashboard/subscription-actions";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
 import { AppError } from "@/server/errors";
-import { getServerForUser } from "@/server/services/server-service";
+import { getServerEvents, getServerForUser } from "@/server/services/server-service";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("dashboard.server");
-  return { title: t("overview") };
+  return { title: t("overview"), robots: { index: false } };
 }
 
 export default async function ServerPage({ params }: PageProps<"/[locale]/dashboard/servers/[id]">) {
@@ -32,16 +37,80 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
     throw error;
   }
 
-  const [t, tb, tc, format, currentLocale] = await Promise.all([
+  const [t, tb, tc, tr, format, currentLocale, events] = await Promise.all([
     getTranslations("dashboard.server"),
     getTranslations("configure"),
     getTranslations("billing"),
+    getTranslations("dashboard.resize"),
     getFormatter(),
     getLocale(),
+    getServerEvents(id, user.id),
   ]);
 
   const address = server.ip ? `${server.ip}:${server.port}` : null;
   const sub = server.subscription;
+  const resizable = server.status === "STOPPED" || server.status === "RUNNING";
+
+  const overview = (
+    <>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <InfoTile icon={<MemoryStick className="size-4" />} label={tb("ram")} value={`${server.ramGb} GB`} />
+        <InfoTile icon={<Cpu className="size-4" />} label={tb("cpu")} value={`${server.vcpu} vCPU`} />
+        <InfoTile
+          icon={<HardDrive className="size-4" />}
+          label={tb("storage")}
+          value={`${server.storageGb} GB NVMe`}
+        />
+      </div>
+
+      <div className="mt-6">
+        <LivePanel serverId={server.id} status={server.status} />
+      </div>
+
+      {sub ? (
+        <section className="mt-6 rounded-2xl border border-white/5 bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase">
+              {t("subscription")}
+            </h2>
+            <SubscriptionActions
+              subscriptionId={sub.id}
+              cancelAtPeriodEnd={sub.cancelAtPeriodEnd}
+            />
+          </div>
+          <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-4">
+            <div>
+              <dt className="text-muted-foreground">{tc("status")}</dt>
+              <dd className="font-medium">{tc(`statuses.${sub.status}`)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t("period")}</dt>
+              <dd className="font-medium">{tb(`periods.${sub.billingPeriod}`)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{tc("amount")}</dt>
+              <dd className="font-medium">
+                {formatMoney(sub.amountCents, sub.currency, currentLocale)}
+                {sub.creditCents > 0 ? (
+                  <span className="ml-1 text-xs text-success">
+                    −{formatMoney(sub.creditCents, sub.currency, currentLocale)}
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{tc("nextRenewal")}</dt>
+              <dd className="font-medium">
+                {sub.cancelAtPeriodEnd
+                  ? t("endsOn", { date: format.dateTime(sub.currentPeriodEnd, { dateStyle: "medium" }) })
+                  : t("renews", { date: format.dateTime(sub.currentPeriodEnd, { dateStyle: "medium" }) })}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
+    </>
+  );
 
   return (
     <>
@@ -75,8 +144,22 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
               {address ? <CopyButton value={address} /> : null}
             </div>
           </div>
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex flex-wrap items-center gap-2">
             <PowerControls serverId={server.id} status={server.status} />
+            <ResizeDialog
+              serverId={server.id}
+              current={{
+                ramGb: server.ramGb,
+                vcpu: server.vcpu,
+                storageGb: server.storageGb,
+              }}
+              minimums={{
+                ramGb: server.game.minRamGb,
+                vcpu: server.game.minCpu,
+                storageGb: server.game.minStorageGb,
+              }}
+              disabled={!resizable}
+            />
             <ServerActionsMenu serverId={server.id} name={server.name} />
           </div>
         </div>
@@ -87,44 +170,17 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
           {t("installingHint")}
         </p>
       ) : null}
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <InfoTile icon={<MemoryStick className="size-4" />} label={tb("ram")} value={`${server.ramGb} GB`} />
-        <InfoTile icon={<Cpu className="size-4" />} label={tb("cpu")} value={`${server.vcpu} vCPU`} />
-        <InfoTile icon={<HardDrive className="size-4" />} label={tb("storage")} value={`${server.storageGb} GB NVMe`} />
-      </div>
-
-      <div className="mt-6">
-        <LivePanel serverId={server.id} status={server.status} />
-      </div>
-
-      {sub ? (
-        <section className="mt-6 rounded-2xl border border-white/5 bg-card p-5">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase">{t("subscription")}</h2>
-          <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-4">
-            <div>
-              <dt className="text-muted-foreground">{tc("status")}</dt>
-              <dd className="font-medium">{tc(`statuses.${sub.status}`)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{t("period")}</dt>
-              <dd className="font-medium">{tb(`periods.${sub.billingPeriod}`)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{tc("amount")}</dt>
-              <dd className="font-medium">{formatMoney(sub.amountCents, sub.currency, currentLocale)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">{tc("nextRenewal")}</dt>
-              <dd className="font-medium">
-                {sub.cancelAtPeriodEnd
-                  ? t("endsOn", { date: format.dateTime(sub.currentPeriodEnd, { dateStyle: "medium" }) })
-                  : t("renews", { date: format.dateTime(sub.currentPeriodEnd, { dateStyle: "medium" }) })}
-              </dd>
-            </div>
-          </dl>
-        </section>
+      {!resizable && server.status !== "INSTALLING" ? (
+        <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-muted-foreground">
+          {tr("onlyWhenStable")}
+        </p>
       ) : null}
+
+      <ServerTabs
+        overview={overview}
+        backups={<BackupsPanel serverId={server.id} />}
+        activity={<EventsList events={events} />}
+      />
     </>
   );
 }
