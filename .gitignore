@@ -39,6 +39,9 @@ yarn-error.log*
 *.db-journal
 /src/generated/
 
+# local Pterodactyl node config (contains the node token)
+/infra/pterodactyl/wings/config.yml
+
 # vercel
 .vercel
 

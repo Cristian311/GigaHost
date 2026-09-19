@@ -68,6 +68,16 @@ prisma/            schema, migrations, seed
 
 **Money flow (simulated).** Checkout → Order (PAID) → Invoice (PAID) → Server provisioned → Subscription (ACTIVE). Replacing the "mark as paid" step with a Stripe webhook is the only change needed for real payments.
 
+## Real servers (Pterodactyl)
+
+Minecraft Java (Paper and Vanilla) can run on real game servers through a Pterodactyl Panel + Wings node. For local testing, [infra/pterodactyl/README.md](infra/pterodactyl/README.md) sets both up in Docker on your PC; production only changes the URLs.
+
+1. Set `SERVER_PROVIDER="pterodactyl"` and the `PTERODACTYL_*` variables in `.env` (the app refuses to boot with a clear message if one is missing).
+2. In `/admin/games`, give each game its Pterodactyl nest and egg IDs; in `/admin/regions`, give each region a location ID. Games and regions without them are not offered.
+3. The dashboard console streams from Wings over a websocket (`/api/servers/[id]/console/token`) and accepts commands.
+
+Other games stay listed as "Coming soon" (`unavailableReason = "coming_soon"`).
+
 ## Switching to PostgreSQL
 
 1. `docker compose up -d` (or any Postgres instance)

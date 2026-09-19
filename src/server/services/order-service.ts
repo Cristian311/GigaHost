@@ -3,28 +3,51 @@ import { addMonths } from "@/lib/dates";
 import { MONTHS_PER_PERIOD } from "@/lib/pricing/types";
 import type { CreateServerInput } from "@/lib/validation/server";
 import { quote } from "./pricing-service";
-import { provisionServer } from "./server-service";
+import { createServerRecord, provisionServer, type ServerSpec } from "./server-service";
 
-async function nextInvoiceNumber(): Promise<string> {
+/** Next invoice number for the current year (GH-2026-000042), safe under concurrent checkouts. */
+async function allocateInvoiceNumber(): Promise<string> {
   const year = new Date().getUTCFullYear();
-  const count = await prisma.invoice.count({
-    where: { number: { startsWith: `GH-${year}-` } },
+  const prefix = `GH-${year}-`;
+  // The first time a year's counter is created, continue after invoices
+  // issued before the counter existed.
+  const existing = await prisma.invoiceCounter.findUnique({ where: { year } });
+  const issued = existing
+    ? 0
+    : await prisma.invoice.count({ where: { number: { startsWith: prefix } } });
+  const counter = await prisma.invoiceCounter.upsert({
+    where: { year },
+    create: { year, last: issued + 1 },
+    update: { last: { increment: 1 } },
   });
-  return `GH-${year}-${String(count + 1).padStart(6, "0")}`;
+  return `${prefix}${String(counter.last).padStart(6, "0")}`;
 }
 
 /**
- * Simulated checkout (Phase 1). Recomputes the price server-side, records the
- * order as paid, issues an invoice, provisions the server and opens a
- * subscription. When Stripe lands, the "mark as paid" part moves to the
- * webhook handler and everything else stays the same.
+ * Simulated checkout (Phase 1). Recomputes the price server-side, provisions
+ * the server and only then records the payment, invoice and subscription, so a
+ * failed provisioning never bills the customer. When Stripe lands, the part
+ * after provisioning moves to the payment webhook.
  */
 export async function checkoutMock(userId: string, input: CreateServerInput) {
   const { breakdown, game, region } = await quote(input);
 
+  const spec: ServerSpec = {
+    userId,
+    name: input.name,
+    gameVersion: input.gameVersion,
+    ramGb: input.ramGb,
+    vcpu: input.vcpu,
+    storageGb: input.storageGb,
+    game,
+    region,
+  };
+
+  const record = await createServerRecord(spec);
   const order = await prisma.order.create({
     data: {
       userId,
+      serverId: record.id,
       status: "PENDING",
       billingPeriod: input.billingPeriod,
       configSnapshot: JSON.stringify({
@@ -46,29 +69,23 @@ export async function checkoutMock(userId: string, input: CreateServerInput) {
     },
   });
 
+  let server;
+  try {
+    server = await provisionServer(record, spec);
+  } catch (error) {
+    await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+    throw error;
+  }
+
   // --- simulated payment gateway --------------------------------------------
   const paidAt = new Date();
-  const invoiceNumber = await nextInvoiceNumber();
-
-  const server = await provisionServer({
-    userId,
-    name: input.name,
-    gameId: game.id,
-    gameSlug: game.slug,
-    gameVersion: input.gameVersion,
-    regionId: region.id,
-    regionCode: region.code,
-    ramGb: input.ramGb,
-    vcpu: input.vcpu,
-    storageGb: input.storageGb,
-  });
-
+  const invoiceNumber = await allocateInvoiceNumber();
   const months = MONTHS_PER_PERIOD[input.billingPeriod];
 
   await prisma.$transaction([
     prisma.order.update({
       where: { id: order.id },
-      data: { status: "PAID", serverId: server.id },
+      data: { status: "PAID" },
     }),
     prisma.invoice.create({
       data: {

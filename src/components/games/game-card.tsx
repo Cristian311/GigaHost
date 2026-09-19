@@ -1,9 +1,10 @@
 import Image from "next/image";
-import { ArrowUpRight, Ban } from "lucide-react";
+import { ArrowUpRight, Ban, Clock } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { Game } from "@/generated/prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "@/i18n/navigation";
+import { COMING_SOON } from "@/lib/games";
 import { calculatePrice, formatMoney } from "@/lib/pricing/calculate-price";
 import type { PricingTable } from "@/lib/pricing/types";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ export async function GameCard({
   pricing: PricingTable;
 }) {
   const [t, locale] = await Promise.all([getTranslations("games"), getLocale()]);
+  const comingSoon = !game.available && game.unavailableReason === COMING_SOON;
 
   const startingPrice = calculatePrice(
     {
@@ -48,7 +50,8 @@ export async function GameCard({
         />
         {!game.available ? (
           <Badge variant="secondary" className="absolute top-3 left-3 gap-1 bg-black/60 text-white">
-            <Ban className="size-3" /> {t("unavailable")}
+            {comingSoon ? <Clock className="size-3" /> : <Ban className="size-3" />}
+            {comingSoon ? t("comingSoon") : t("unavailable")}
           </Badge>
         ) : null}
       </div>
@@ -70,7 +73,9 @@ export async function GameCard({
               <span className="text-xs">/mo</span>
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">{game.unavailableReason}</p>
+            <p className="text-xs text-muted-foreground">
+              {comingSoon ? t("comingSoonDesc") : game.unavailableReason}
+            </p>
           )}
           {game.available ? (
             <p className="text-xs text-muted-foreground">

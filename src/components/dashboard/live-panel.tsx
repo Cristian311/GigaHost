@@ -1,15 +1,19 @@
 "use client";
 
-import { Activity, Cpu, HardDrive, MemoryStick, Terminal, Users } from "lucide-react";
+import { Activity, Cpu, HardDrive, MemoryStick, SendHorizontal, Terminal, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { toast } from "sonner";
 import type { ServerStatus } from "@/generated/prisma/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useRouter } from "@/i18n/navigation";
 import { formatUptime } from "@/lib/dates";
 import type { ConsoleLine, ResourceUsage } from "@/server/providers/types";
 import { cn } from "@/lib/utils";
+import { useServerSocket } from "./use-server-socket";
 
 const TRANSITIONAL: ServerStatus[] = ["PENDING", "INSTALLING", "STARTING", "STOPPING"];
 
@@ -17,16 +21,23 @@ type UsagePayload = { status: ServerStatus; usage: ResourceUsage };
 type ConsolePayload = { status: ServerStatus; lines: ConsoleLine[] };
 
 /**
- * Polls usage + console for a server. When the status reported by the API
- * differs from the server-rendered one, the page is refreshed so headers and
- * power controls update as well.
+ * Usage is polled; the console streams over the node's websocket when the
+ * provider offers one and is polled otherwise (mock). Whenever the reported
+ * status differs from the server-rendered one the page is refreshed so the
+ * header and power controls update too.
  */
 export function LivePanel({ serverId, status }: { serverId: string; status: ServerStatus }) {
   const t = useTranslations("dashboard.server");
   const router = useRouter();
   const [usage, setUsage] = useState<ResourceUsage | null>(null);
-  const [lines, setLines] = useState<ConsoleLine[]>([]);
+  const [polledLines, setPolledLines] = useState<ConsoleLine[]>([]);
+  const [command, setCommand] = useState("");
   const consoleRef = useRef<HTMLDivElement>(null);
+
+  const socket = useServerSocket(serverId, status !== "SUSPENDED", () => router.refresh());
+  const streaming = socket.state !== "unavailable";
+  const lines = streaming ? socket.lines : polledLines;
+  const canSendCommands = streaming && (status === "RUNNING" || status === "STARTING");
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +47,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       try {
         const [usageRes, consoleRes] = await Promise.all([
           fetch(`/api/servers/${serverId}/usage`, { cache: "no-store" }),
-          fetch(`/api/servers/${serverId}/console?limit=80`, { cache: "no-store" }),
+          streaming
+            ? null
+            : fetch(`/api/servers/${serverId}/console?limit=80`, { cache: "no-store" }),
         ]);
         if (cancelled) return;
         if (usageRes.ok) {
@@ -44,9 +57,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
           setUsage(data.usage);
           if (data.status !== status) router.refresh();
         }
-        if (consoleRes.ok) {
+        if (consoleRes?.ok) {
           const data = (await consoleRes.json()) as ConsolePayload;
-          setLines(data.lines);
+          setPolledLines(data.lines);
         }
       } catch {
         // Network hiccup: keep the last known values.
@@ -59,12 +72,21 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       cancelled = true;
       clearInterval(id);
     };
-  }, [serverId, status, router]);
+  }, [serverId, status, router, streaming]);
 
   useEffect(() => {
     const el = consoleRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines]);
+
+  async function submitCommand(e: React.FormEvent) {
+    e.preventDefault();
+    const value = command.trim();
+    if (!value) return;
+    setCommand("");
+    const sent = await socket.sendCommand(value).catch(() => false);
+    if (!sent) toast.error(t("commandFailed"));
+  }
 
   const ramPct = usage ? Math.round((usage.ramUsedMb / usage.ramTotalMb) * 100) : 0;
   const diskPct = usage ? Math.round((usage.diskUsedMb / usage.diskTotalMb) * 100) : 0;
@@ -144,6 +166,22 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       <section className="flex flex-col rounded-2xl border border-white/5 bg-card p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase">
           <Terminal className="size-4" /> {t("console")}
+          {streaming ? (
+            <span
+              className={cn(
+                "ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium normal-case",
+                socket.state === "live" ? "text-success" : "text-muted-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  socket.state === "live" ? "bg-success" : "animate-pulse bg-muted-foreground",
+                )}
+              />
+              {socket.state === "live" ? t("consoleLive") : t("consoleConnecting")}
+            </span>
+          ) : null}
         </h2>
         <div
           ref={consoleRef}
@@ -151,6 +189,21 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
         >
           {lines.length === 0 ? (
             <p className="text-muted-foreground">{t("consoleEmpty")}</p>
+          ) : streaming ? (
+            // Real server output already carries its own timestamp and level.
+            lines.map((line, index) => (
+              <p
+                key={`${line.ts}-${index}`}
+                className={cn(
+                  "whitespace-pre-wrap",
+                  line.level === "info" && "text-foreground/90",
+                  line.level === "warn" && "text-warning",
+                  line.level === "error" && "text-destructive",
+                )}
+              >
+                {line.text}
+              </p>
+            ))
           ) : (
             lines.map((line, index) => (
               <p key={`${line.ts}-${index}`} className="whitespace-pre-wrap">
@@ -171,6 +224,23 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
             ))
           )}
         </div>
+
+        {streaming ? (
+          <form onSubmit={submitCommand} className="mt-3 flex gap-2">
+            <Input
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder={canSendCommands ? t("commandPlaceholder") : t("commandOffline")}
+              disabled={!canSendCommands}
+              maxLength={200}
+              className="font-mono"
+              aria-label={t("commandPlaceholder")}
+            />
+            <Button type="submit" variant="outline" disabled={!canSendCommands || !command.trim()}>
+              <SendHorizontal data-icon="inline-start" /> {t("commandSend")}
+            </Button>
+          </form>
+        ) : null}
       </section>
     </div>
   );

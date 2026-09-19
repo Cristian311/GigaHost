@@ -76,15 +76,20 @@ model User {
   passwordHash  String?
   role          Role      @default(USER)
   locale        String    @default("en")
+  /// Last support heartbeat (admins only); drives the live chat "online" dot.
+  lastSeenAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  servers       Server[]
-  orders        Order[]
-  subscriptions Subscription[]
-  invoices      Invoice[]
+  accounts        Account[]
+  sessions        Session[]
+  servers         Server[]
+  orders          Order[]
+  subscriptions   Subscription[]
+  invoices        Invoice[]
+  tickets         Ticket[]        @relation("TicketUser")
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  ticketMessages  TicketMessage[]
 }
 
 model Account {
@@ -148,8 +153,20 @@ model Game {
   /// JSON-encoded string[] of supported versions.
   versions          String  @default("[]")
   available         Boolean @default(true)
+  /// Free text, or the i18n key "coming_soon".
   unavailableReason String?
   sortOrder         Int     @default(0)
+
+  /// Pterodactyl provisioning. Without nest + egg the game cannot run on a real node.
+  pterodactylNestId Int?
+  pterodactylEggId  Int?
+  /// Overrides the egg's Docker image; null picks a Java image matching the version.
+  dockerImage       String?
+  /// Egg variable that receives the chosen version (e.g. MINECRAFT_VERSION).
+  versionVariable   String?
+  /// JSON object of fixed egg variables, e.g. {"SERVER_JARFILE":"server.jar"}.
+  eggVariables      String  @default("{}")
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -167,6 +184,8 @@ model Region {
   priceMultiplier Float   @default(1.0)
   active          Boolean @default(true)
   sortOrder       Int     @default(0)
+  /// Pterodactyl location servers in this region are deployed to.
+  pterodactylLocationId Int?
 
   servers Server[]
 }
@@ -207,6 +226,12 @@ model Server {
   statusChangedAt DateTime     @default(now())
   /// Identifier on the provisioning backend (mock id / Pterodactyl uuid).
   providerId      String?      @unique
+  /// Pterodactyl short identifier (Client API).
+  providerIdentifier String?
+  /// Pterodactyl numeric id (Application API).
+  providerInternalId Int?
+  /// Last provisioning error, shown to admins.
+  lastError       String?
   ip              String?
   port            Int?
   createdAt       DateTime     @default(now())
@@ -217,8 +242,85 @@ model Server {
   region       Region        @relation(fields: [regionId], references: [id])
   subscription Subscription?
   orders       Order[]
+  tickets      Ticket[]
 
   @@index([ownerId])
+}
+
+// ---------------------------------------------------------------------------
+// Support: tickets and live chat share one model
+// ---------------------------------------------------------------------------
+
+enum TicketKind {
+  TICKET
+  CHAT
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum TicketCategory {
+  GENERAL
+  TECHNICAL
+  BILLING
+  ABUSE
+}
+
+model Ticket {
+  id            String         @id @default(cuid())
+  kind          TicketKind     @default(TICKET)
+  subject       String
+  category      TicketCategory @default(GENERAL)
+  priority      TicketPriority @default(NORMAL)
+  status        TicketStatus   @default(OPEN)
+  userId        String
+  assigneeId    String?
+  serverId      String?
+  /// True when the last public message came from the customer.
+  awaitingStaff Boolean        @default(true)
+  lastMessageAt DateTime       @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user     User            @relation("TicketUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignee User?           @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  server   Server?         @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([assigneeId])
+  @@index([serverId])
+  @@index([awaitingStaff, lastMessageAt])
+  @@index([kind, status])
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String
+  body       String
+  /// Written by an admin acting as staff (fixed at write time).
+  isStaff    Boolean  @default(false)
+  /// Staff-only note, never shown to the customer.
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
 }
 
 // ---------------------------------------------------------------------------
@@ -287,4 +389,10 @@ model Invoice {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Last invoice number issued per year; incremented atomically at checkout.
+model InvoiceCounter {
+  year Int @id
+  last Int
 }

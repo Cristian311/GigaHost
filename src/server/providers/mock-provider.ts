@@ -1,5 +1,6 @@
 import { MOCK_TIMINGS } from "@/lib/constants";
 import type {
+  ConsoleAccess,
   ConsoleLine,
   ProviderStatus,
   ProvisionInput,
@@ -53,7 +54,7 @@ export class MockProvider implements ServerProvider {
     const prefix = REGION_IP_PREFIX[input.regionCode] ?? "10.0";
     const ip = `${prefix}.${Math.floor(rand() * 200) + 10}.${Math.floor(rand() * 200) + 10}`;
     const port = 25000 + Math.floor(rand() * 5000);
-    return { providerId: `mock_${input.serverId}`, ip, port };
+    return { providerId: `mock_${input.serverId}`, identifier: null, internalId: null, ip, port };
   }
 
   async deleteServer(): Promise<void> {
@@ -63,6 +64,13 @@ export class MockProvider implements ServerProvider {
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   async restart(): Promise<void> {}
+  async suspend(): Promise<void> {}
+  async unsuspend(): Promise<void> {}
+  async sendCommand(): Promise<void> {}
+
+  async getConsoleAccess(): Promise<ConsoleAccess | null> {
+    return null;
+  }
 
   async getStatus(ref: ServerRef): Promise<ProviderStatus> {
     const elapsed = Date.now() - ref.statusChangedAt.getTime();

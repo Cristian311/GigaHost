@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
+import { BILLING_STATUS_VARIANT } from "@/lib/billing-status";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
 import {
@@ -23,19 +24,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("billing");
   return { title: t("title") };
 }
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  ACTIVE: "default",
-  PAID: "default",
-  PENDING: "secondary",
-  OPEN: "secondary",
-  DRAFT: "secondary",
-  PAST_DUE: "destructive",
-  FAILED: "destructive",
-  CANCELLED: "outline",
-  EXPIRED: "outline",
-  VOID: "outline",
-};
 
 export default async function BillingPage({ params }: PageProps<"/[locale]/dashboard/billing">) {
   const { locale } = await params;
@@ -99,7 +87,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[sub.status]}>{t(`statuses.${sub.status}`)}</Badge>
+                    <Badge variant={BILLING_STATUS_VARIANT[sub.status]}>{t(`statuses.${sub.status}`)}</Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -130,7 +118,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                     {formatMoney(inv.amountCents, inv.currency, currentLocale)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[inv.status]}>{t(`statuses.${inv.status}`)}</Badge>
+                    <Badge variant={BILLING_STATUS_VARIANT[inv.status]}>{t(`statuses.${inv.status}`)}</Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -163,7 +151,7 @@ export default async function BillingPage({ params }: PageProps<"/[locale]/dashb
                     {formatMoney(order.totalCents, order.currency, currentLocale)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[order.status]}>{t(`statuses.${order.status}`)}</Badge>
+                    <Badge variant={BILLING_STATUS_VARIANT[order.status]}>{t(`statuses.${order.status}`)}</Badge>
                   </TableCell>
                 </TableRow>
               ))}

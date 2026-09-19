@@ -14,21 +14,65 @@ type GameSeed = {
   versions: string[];
   available?: boolean;
   unavailableReason?: string;
+  /** Defaults to /games/<slug>.svg. */
+  image?: string;
+  /** Provisioning defaults, applied only when the game is first created. */
+  versionVariable?: string;
+  eggVariables?: Record<string, string>;
+};
+
+/** i18n key rendered as "Coming soon" on the site. */
+const COMING_SOON = "coming_soon";
+
+const MINECRAFT_VERSIONS = [
+  "Latest",
+  "1.21.8",
+  "1.21.4",
+  "1.20.6",
+  "1.20.4",
+  "1.20.1",
+  "1.19.4",
+  "1.18.2",
+  "1.16.5",
+  "1.12.2",
+];
+
+const PAPER_DEFAULTS = {
+  versionVariable: "MINECRAFT_VERSION",
+  eggVariables: { SERVER_JARFILE: "server.jar", BUILD_NUMBER: "latest" },
 };
 
 const games: GameSeed[] = [
   {
-    slug: "minecraft-java",
-    name: "Minecraft: Java Edition",
-    tagline: "Vanilla, Paper, Fabric, Forge – one click.",
+    slug: "minecraft-paper",
+    name: "Minecraft: Java (Paper)",
+    tagline: "Fast, plugin-ready Java server.",
     description:
-      "Run any Minecraft Java server flavour with instant modpack and plugin support, automatic backups and a full file manager.",
+      "Paper is a high-performance fork of the official server with Bukkit and Spigot plugin support. Pick any version from 1.12 to the latest release; the right Java version is chosen for you.",
     accentColor: "#22c55e",
     minRamGb: 2,
     recommendedRamGb: 6,
     minCpu: 1,
     minStorageGb: 10,
-    versions: ["1.21.8", "1.21.4", "1.20.6", "1.20.1", "1.19.4", "1.18.2", "1.16.5", "1.12.2"],
+    versions: MINECRAFT_VERSIONS,
+    image: "/games/minecraft-java.svg",
+    ...PAPER_DEFAULTS,
+  },
+  {
+    slug: "minecraft-vanilla",
+    name: "Minecraft: Java (Vanilla)",
+    tagline: "The official server, exactly as Mojang ships it.",
+    description:
+      "The unmodified Minecraft Java server. Ideal for survival worlds with friends when you do not need plugins.",
+    accentColor: "#4ade80",
+    minRamGb: 2,
+    recommendedRamGb: 4,
+    minCpu: 1,
+    minStorageGb: 10,
+    versions: MINECRAFT_VERSIONS,
+    image: "/games/minecraft-java.svg",
+    versionVariable: "VANILLA_VERSION",
+    eggVariables: { SERVER_JARFILE: "server.jar" },
   },
   {
     slug: "minecraft-bedrock",
@@ -42,6 +86,8 @@ const games: GameSeed[] = [
     minCpu: 1,
     minStorageGb: 10,
     versions: ["1.21.90", "1.21.60", "1.20.80"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "rust",
@@ -55,6 +101,8 @@ const games: GameSeed[] = [
     minCpu: 3,
     minStorageGb: 40,
     versions: ["Latest", "Staging"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "ark-survival-ascended",
@@ -68,6 +116,8 @@ const games: GameSeed[] = [
     minCpu: 4,
     minStorageGb: 60,
     versions: ["Latest"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "valheim",
@@ -81,6 +131,8 @@ const games: GameSeed[] = [
     minCpu: 2,
     minStorageGb: 10,
     versions: ["Latest", "Public Test"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "cs2",
@@ -94,6 +146,8 @@ const games: GameSeed[] = [
     minCpu: 2,
     minStorageGb: 40,
     versions: ["Latest"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "palworld",
@@ -107,6 +161,8 @@ const games: GameSeed[] = [
     minCpu: 4,
     minStorageGb: 20,
     versions: ["Latest"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "terraria",
@@ -120,6 +176,8 @@ const games: GameSeed[] = [
     minCpu: 1,
     minStorageGb: 10,
     versions: ["1.4.5", "1.4.4.9", "tModLoader"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "7-days-to-die",
@@ -133,6 +191,8 @@ const games: GameSeed[] = [
     minCpu: 3,
     minStorageGb: 20,
     versions: ["Latest", "Experimental"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "satisfactory",
@@ -146,6 +206,8 @@ const games: GameSeed[] = [
     minCpu: 3,
     minStorageGb: 20,
     versions: ["Latest", "Experimental"],
+    available: false,
+    unavailableReason: COMING_SOON,
   },
   {
     slug: "roblox",
@@ -174,26 +236,45 @@ const regions = [
 
 async function main() {
   console.log("Seeding games…");
+
+  // Earlier seeds had a single "minecraft-java" game. Rename it to Paper so
+  // existing servers keep pointing at a valid game.
+  const legacy = await prisma.game.findUnique({ where: { slug: "minecraft-java" } });
+  const paper = await prisma.game.findUnique({ where: { slug: "minecraft-paper" } });
+  if (legacy && !paper) {
+    await prisma.game.update({
+      where: { id: legacy.id },
+      data: {
+        slug: "minecraft-paper",
+        versionVariable: PAPER_DEFAULTS.versionVariable,
+        eggVariables: JSON.stringify(PAPER_DEFAULTS.eggVariables),
+      },
+    });
+  }
+
   for (const [index, game] of games.entries()) {
-    const { versions, available = true, unavailableReason = null, ...rest } = game;
+    const {
+      versions,
+      available = true,
+      unavailableReason = null,
+      image,
+      versionVariable = null,
+      eggVariables = {},
+      ...rest
+    } = game;
+    const catalog = {
+      ...rest,
+      versions: JSON.stringify(versions),
+      available,
+      unavailableReason,
+      image: image ?? `/games/${game.slug}.svg`,
+      sortOrder: index,
+    };
     await prisma.game.upsert({
       where: { slug: game.slug },
-      update: {
-        ...rest,
-        versions: JSON.stringify(versions),
-        available,
-        unavailableReason,
-        image: `/games/${game.slug}.svg`,
-        sortOrder: index,
-      },
-      create: {
-        ...rest,
-        versions: JSON.stringify(versions),
-        available,
-        unavailableReason,
-        image: `/games/${game.slug}.svg`,
-        sortOrder: index,
-      },
+      update: catalog,
+      // Pterodactyl settings are only defaults: admins tune them in /admin/games.
+      create: { ...catalog, versionVariable, eggVariables: JSON.stringify(eggVariables) },
     });
   }
 

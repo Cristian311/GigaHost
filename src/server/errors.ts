@@ -8,7 +8,16 @@ export type AppErrorCode =
   | "email_taken"
   | "invalid_credentials"
   | "pricing_missing"
+  | "region_code_taken"
+  | "game_not_configured"
+  | "region_not_configured"
+  | "no_capacity"
+  | "provider_error"
+  | "provider_unavailable"
+  | "provider_not_configured"
   | "not_found"
+  | "ticket_not_found"
+  | "ticket_closed"
   | "validation";
 
 export class AppError extends Error {

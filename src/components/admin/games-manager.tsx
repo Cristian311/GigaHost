@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -25,7 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from "@/i18n/navigation";
-import { deleteGameAction, upsertGameAction } from "@/server/actions/admin";
+import { deleteGameAction, inspectEggAction, upsertGameAction } from "@/server/actions/admin";
+import type { EggInspection } from "@/server/services/admin-service";
 
 export type AdminGameRow = {
   id: string;
@@ -43,6 +44,11 @@ export type AdminGameRow = {
   available: boolean;
   unavailableReason: string | null;
   sortOrder: number;
+  pterodactylNestId: number | null;
+  pterodactylEggId: number | null;
+  dockerImage: string | null;
+  versionVariable: string | null;
+  eggVariables: string;
 };
 
 type FormState = Omit<AdminGameRow, "id" | "versions"> & { id?: string; versions: string };
@@ -62,6 +68,11 @@ const EMPTY: FormState = {
   available: true,
   unavailableReason: "",
   sortOrder: 99,
+  pterodactylNestId: null,
+  pterodactylEggId: null,
+  dockerImage: "",
+  versionVariable: "",
+  eggVariables: "{}",
 };
 
 export function GamesManager({ games }: { games: AdminGameRow[] }) {
@@ -69,8 +80,15 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
   const tc = useTranslations("common");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [inspecting, startInspect] = useTransition();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [inspection, setInspection] = useState<EggInspection | null>(null);
+
+  const errorText = (code: string) => {
+    const key = `errors.${code}`;
+    return t.has(key) ? t(key) : t("errors.internal_error");
+  };
 
   function edit(game?: AdminGameRow) {
     setForm(
@@ -78,6 +96,7 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
         ? { ...game, versions: game.versions.join(", "), unavailableReason: game.unavailableReason ?? "" }
         : { ...EMPTY, sortOrder: games.length },
     );
+    setInspection(null);
     setOpen(true);
   }
 
@@ -87,9 +106,11 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
       const result = await upsertGameAction({
         ...form,
         unavailableReason: form.unavailableReason || null,
+        dockerImage: form.dockerImage || null,
+        versionVariable: form.versionVariable || null,
       });
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(errorText(result.error));
         return;
       }
       toast.success(t("saved"));
@@ -103,10 +124,24 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
     startTransition(async () => {
       const result = await deleteGameAction(game.id);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(errorText(result.error));
         return;
       }
       router.refresh();
+    });
+  }
+
+  function inspect() {
+    const { pterodactylNestId: nestId, pterodactylEggId: eggId } = form;
+    if (!nestId || !eggId) return;
+    startInspect(async () => {
+      const result = await inspectEggAction({ nestId, eggId });
+      if (!result.ok) {
+        setInspection(null);
+        toast.error(errorText(result.error));
+        return;
+      }
+      setInspection(result.data);
     });
   }
 
@@ -135,6 +170,22 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
     </div>
   );
 
+  const optionalId = (key: "pterodactylNestId" | "pterodactylEggId", label: string) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={key}>{label}</Label>
+      <Input
+        id={key}
+        type="number"
+        min={1}
+        value={form[key] ?? ""}
+        onChange={(e) => {
+          setForm({ ...form, [key]: e.target.value === "" ? null : Number(e.target.value) });
+          setInspection(null);
+        }}
+      />
+    </div>
+  );
+
   return (
     <>
       <div className="mb-4 flex justify-end">
@@ -152,6 +203,7 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
               <TableHead>{t("minRam")}</TableHead>
               <TableHead>{t("minCpu")}</TableHead>
               <TableHead>{t("available")}</TableHead>
+              <TableHead>{t("pterodactyl")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -172,6 +224,11 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
                   <Badge variant={game.available ? "default" : "outline"}>
                     {game.available ? tc("yes") : tc("no")}
                   </Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {game.pterodactylEggId !== null
+                    ? `nest ${game.pterodactylNestId} · egg ${game.pterodactylEggId}`
+                    : <span className="text-muted-foreground">{t("notConfigured")}</span>}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -225,6 +282,55 @@ export function GamesManager({ games }: { games: AdminGameRow[] }) {
               {!form.available ? (
                 <div className="sm:col-span-2">{text("unavailableReason", t("unavailableReason"))}</div>
               ) : null}
+
+              <h3 className="border-t border-white/5 pt-4 text-sm font-semibold text-muted-foreground uppercase sm:col-span-2">
+                {t("pterodactyl")}
+              </h3>
+              {optionalId("pterodactylNestId", t("nestId"))}
+              {optionalId("pterodactylEggId", t("eggId"))}
+              {text("versionVariable", t("versionVariable"), {
+                placeholder: "MINECRAFT_VERSION",
+                pattern: "[A-Z0-9_]*",
+              })}
+              {text("dockerImage", t("dockerImage"), { placeholder: t("dockerImageHint") })}
+              <div className="sm:col-span-2">
+                {text("eggVariables", t("eggVariables"), {
+                  placeholder: '{"SERVER_JARFILE":"server.jar"}',
+                  className: "font-mono",
+                })}
+              </div>
+              <div className="sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={inspect}
+                  disabled={inspecting || !form.pterodactylNestId || !form.pterodactylEggId}
+                >
+                  {inspecting ? <Loader2 className="animate-spin" /> : <Search data-icon="inline-start" />}
+                  {t("inspect")}
+                </Button>
+                {inspection ? (
+                  <div className="mt-3 space-y-2 rounded-xl border border-success/30 bg-success/5 p-3 text-xs">
+                    <p className="flex items-center gap-1.5 font-semibold text-success">
+                      <CheckCircle2 className="size-4" /> {inspection.name}
+                    </p>
+                    <p className="font-mono break-all text-muted-foreground">
+                      {inspection.dockerImages.join(" · ")}
+                    </p>
+                    <p className="font-semibold">{t("inspectVariables")}</p>
+                    <ul className="space-y-0.5 font-mono">
+                      {inspection.variables.map((v) => (
+                        <li key={v.env}>
+                          {v.env}
+                          {v.required ? <span className="text-warning">*</span> : null} ={" "}
+                          <span className="text-muted-foreground">{v.defaultValue || "\"\""}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>

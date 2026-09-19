@@ -88,6 +88,23 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
         </p>
       ) : null}
 
+      {server.status === "SUSPENDED" ? (
+        <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {t("suspendedHint")}
+        </p>
+      ) : null}
+
+      {server.status === "ERROR" ? (
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p>{t("errorHint")}</p>
+          {user.role === "ADMIN" && server.lastError ? (
+            <p className="mt-2 font-mono text-xs break-all opacity-80">
+              {t("adminErrorLabel")}: {server.lastError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <InfoTile icon={<MemoryStick className="size-4" />} label={tb("ram")} value={`${server.ramGb} GB`} />
         <InfoTile icon={<Cpu className="size-4" />} label={tb("cpu")} value={`${server.vcpu} vCPU`} />
