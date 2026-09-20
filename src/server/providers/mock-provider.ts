@@ -6,6 +6,7 @@ import { defaultFiles, type SeedContext } from "./mock-files";
 import type {
   AddonFile,
   BackupResult,
+  ConsoleAccess,
   ConsoleLine,
   FileEntry,
   PlayerInfo,
@@ -95,7 +96,13 @@ export class MockProvider implements ServerProvider {
       port,
       maxPlayers: MAX_PLAYERS,
     });
-    return { providerId: `mock_${input.serverId}`, ip, port };
+    return {
+      providerId: `mock_${input.serverId}`,
+      identifier: null,
+      internalId: null,
+      ip,
+      port,
+    };
   }
 
   async deleteServer(): Promise<void> {
@@ -105,6 +112,12 @@ export class MockProvider implements ServerProvider {
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   async restart(): Promise<void> {}
+  async suspend(): Promise<void> {}
+  async unsuspend(): Promise<void> {}
+
+  async getConsoleAccess(): Promise<ConsoleAccess | null> {
+    return null;
+  }
 
   async createBackup(ref: ServerRef, name: string): Promise<BackupResult> {
     const rand = mulberry32(hashString(`${ref.providerId}:${name}:${Date.now()}`));

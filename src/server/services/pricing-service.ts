@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import type { Game, PricingConfig } from "@/generated/prisma/client";
+import { getServerProviderKind } from "@/lib/env";
 import { calculatePrice } from "@/lib/pricing/calculate-price";
 import type { PriceBreakdown, PricingTable } from "@/lib/pricing/types";
 import type { ServerConfigInput } from "@/lib/validation/server";
 import { AppError } from "@/server/errors";
+import { isGameProvisionable, isRegionProvisionable } from "@/server/providers/targets";
 
 export function toPricingTable(config: PricingConfig): PricingTable {
   return {
@@ -44,14 +46,22 @@ export async function getGameBySlug(slug: string) {
   return prisma.game.findUnique({ where: { slug } });
 }
 
-/** Data the configurator needs to compute prices client-side. */
+/**
+ * Data the configurator needs to compute prices client-side. With real
+ * provisioning, games and regions without Pterodactyl settings are not offered.
+ */
 export async function getConfiguratorData() {
   const [games, regions, pricing] = await Promise.all([
     getGames(),
     getActiveRegions(),
     getActivePricing(),
   ]);
-  return { games, regions, pricing: toPricingTable(pricing) };
+  const real = getServerProviderKind() === "pterodactyl";
+  return {
+    games: real ? games.map((g) => (isGameProvisionable(g) ? g : { ...g, available: false })) : games,
+    regions: real ? regions.filter(isRegionProvisionable) : regions,
+    pricing: toPricingTable(pricing),
+  };
 }
 
 export type Quote = {
@@ -94,6 +104,11 @@ export async function quote(input: ServerConfigInput): Promise<Quote> {
   if (!game) throw new AppError("game_not_found", 404);
   if (!game.available) throw new AppError("game_unavailable", 400);
   if (!region || !region.active) throw new AppError("region_not_found", 404);
+
+  if (getServerProviderKind() === "pterodactyl") {
+    if (!isGameProvisionable(game)) throw new AppError("game_not_configured", 400);
+    if (!isRegionProvisionable(region)) throw new AppError("region_not_configured", 400);
+  }
 
   assertMeetsMinimums(game, input);
 

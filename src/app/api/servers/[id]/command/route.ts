@@ -6,6 +6,7 @@ import { sendCommand } from "@/server/services/console-service";
 
 type Context = { params: Promise<{ id: string }> };
 
+/** Fallback for sending a console command when the websocket is not connected. */
 export async function POST(request: Request, { params }: Context) {
   return withApi(async () => {
     const user = await getApiUser();

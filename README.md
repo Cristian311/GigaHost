@@ -97,7 +97,7 @@ src/
 prisma/            schema, migrations, seed
 ```
 
-**Provisioning abstraction.** Everything that talks to a game server goes through the `ServerProvider` interface (`src/server/providers/types.ts`). `MockProvider` simulates installs, starts and stops with lazy time-based transitions (INSTALLING → STOPPED after 10 s, STARTING → RUNNING after 5 s, …) and fakes usage graphs and console output. `SERVER_PROVIDER=pterodactyl` selects the stub that will call the Pterodactyl Panel API.
+**Provisioning abstraction.** Everything that talks to a game server goes through the `ServerProvider` interface (`src/server/providers/types.ts`). `MockProvider` simulates installs, starts and stops with lazy time-based transitions (INSTALLING → STOPPED after 10 s, STARTING → RUNNING after 5 s, …) and fakes usage graphs and console output. `SERVER_PROVIDER=pterodactyl` selects the real backend (see [Real servers](#real-servers-pterodactyl)).
 
 **Pricing.** `calculatePrice()` is a pure function working in integer cents. The client uses it for the live preview; the server recomputes it on checkout, so a tampered total is never trusted.
 
@@ -133,6 +133,18 @@ accumulate as `Subscription.creditCents` for the next renewal.
 **Activity log.** Every meaningful change writes a `ServerEvent`
 (`src/server/services/event-service.ts`): creation, the lazy state transitions,
 restarts, resizes, backup operations, suspension and deletion.
+
+## Real servers (Pterodactyl)
+
+Minecraft Java (Paper and Vanilla) can run on real game servers through a Pterodactyl Panel + Wings node. For local testing, [infra/pterodactyl/README.md](infra/pterodactyl/README.md) sets both up in Docker on your PC; production only changes the URLs.
+
+1. Set `SERVER_PROVIDER="pterodactyl"` and the `PTERODACTYL_*` variables in `.env` (the app refuses to boot with a clear message if one is missing).
+2. In `/admin/games`, give each game its Pterodactyl nest and egg IDs; in `/admin/regions`, give each region a location ID. Games and regions without them are not offered.
+3. The dashboard console streams from Wings over a websocket (`/api/servers/[id]/console/token`) and accepts commands.
+
+Other games stay listed as "Coming soon" (`unavailableReason = "coming_soon"`).
+
+Backups, the file manager, the player list and add-ons are still mock-only: `PterodactylProvider` throws `provider_unavailable` for those, and the Panel endpoint each one needs is listed in a comment on the class.
 
 ## Database notes
 

@@ -14,7 +14,7 @@ describe("checkout (simulated)", () => {
 
     const { orderId, serverId } = await checkoutMock(user.id, {
       name: "Friday SMP",
-      gameSlug: "minecraft-java",
+      gameSlug: "minecraft-paper",
       gameVersion: "1.21.8",
       ramGb: 8,
       vcpu: 4,

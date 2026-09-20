@@ -75,7 +75,7 @@ export async function createServerFor(
 ) {
   const result = await checkoutMock(userId, {
     name: overrides.name ?? "Test Server",
-    gameSlug: overrides.gameSlug ?? "minecraft-java",
+    gameSlug: overrides.gameSlug ?? "minecraft-paper",
     gameVersion: overrides.gameVersion,
     ramGb: overrides.ramGb ?? 8,
     vcpu: overrides.vcpu ?? 4,

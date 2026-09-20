@@ -8,7 +8,7 @@ import { redeemCoupon, validateCoupon } from "./coupon-service";
 import { nextInvoiceNumber } from "./invoice-service";
 import { notifyOrderConfirmed } from "./notification-service";
 import { quote } from "./pricing-service";
-import { provisionServer } from "./server-service";
+import { createServerRecord, provisionServer, type ServerSpec } from "./server-service";
 
 /** Everything needed to provision the server once the order is paid. */
 export type OrderSnapshot = {
@@ -32,7 +32,8 @@ export { nextInvoiceNumber };
 
 /**
  * Recomputes the price server-side (the client total is never trusted),
- * validates the coupon and stores a PENDING order.
+ * validates the coupon and stores a PENDING order. The server itself is only
+ * created once the order is paid (see `fulfilOrder`).
  */
 export async function createOrder(userId: string, input: CreateServerInput) {
   const { breakdown, game, region } = await quote(input);
@@ -104,18 +105,17 @@ export async function fulfilOrder(
   if (!game) throw new AppError("game_not_found", 404);
   if (!region) throw new AppError("region_not_found", 404);
 
-  const server = await provisionServer({
+  const spec: ServerSpec = {
     userId: order.userId,
     name: snapshot.name,
-    gameId: game.id,
-    gameSlug: game.slug,
     gameVersion: snapshot.gameVersion,
-    regionId: region.id,
-    regionCode: region.code,
     ramGb: snapshot.ramGb,
     vcpu: snapshot.vcpu,
     storageGb: snapshot.storageGb,
-  });
+    game,
+    region,
+  };
+  const server = await provisionServer(await createServerRecord(spec), spec);
 
   const invoiceNumber = await nextInvoiceNumber();
   const months = MONTHS_PER_PERIOD[order.billingPeriod];

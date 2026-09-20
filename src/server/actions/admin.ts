@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import {
+  inspectEggSchema,
   pricingConfigSchema,
   setUserRoleSchema,
   suspendServerSchema,
@@ -17,17 +18,24 @@ import { clientIp } from "@/server/security/rate-limit";
 import {
   deleteGame,
   deleteRegion,
+  inspectEgg,
+  inspectLocation,
   setUserRole,
   suspendServer,
   unsuspendServer,
   updatePricing,
   upsertGame,
   upsertRegion,
+  type EggInspection,
+  type LocationInspection,
 } from "@/server/services/admin-service";
 import { recordAudit, type AuditAction } from "@/server/services/audit-service";
 import { deleteCoupon, upsertCoupon } from "@/server/services/coupon-service";
 import { runBillingCycle, type BillingCycleReport } from "@/server/services/renewal-service";
+import { adminDeleteServer } from "@/server/services/server-service";
 import type { ActionResult } from "./servers";
+
+const idSchema = z.string().min(1);
 
 function fail(error: unknown): ActionResult<never> {
   if (error instanceof z.ZodError) {
@@ -61,6 +69,16 @@ async function audited<T = undefined>(
     });
     revalidatePath("/", "layout");
     return { ok: true, data: data as T };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Runs a read-only admin query, mapping errors to an ActionResult. */
+async function query<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  await requireAdmin();
+  try {
+    return { ok: true, data: await fn() };
   } catch (error) {
     return fail(error);
   }
@@ -158,4 +176,25 @@ export async function runBillingCycleAction(): Promise<ActionResult<BillingCycle
     const report = await runBillingCycle();
     return { data: report, trail: { meta: report } };
   });
+}
+
+export async function adminDeleteServerAction(serverId: string): Promise<ActionResult> {
+  return audited("server.delete", async () => {
+    const id = idSchema.parse(serverId);
+    await adminDeleteServer(id);
+    return { trail: { targetType: "Server", targetId: id } };
+  });
+}
+
+export async function inspectEggAction(input: unknown): Promise<ActionResult<EggInspection>> {
+  return query(() => {
+    const { nestId, eggId } = inspectEggSchema.parse(input);
+    return inspectEgg(nestId, eggId);
+  });
+}
+
+export async function inspectLocationAction(
+  locationId: unknown,
+): Promise<ActionResult<LocationInspection>> {
+  return query(() => inspectLocation(z.number().int().positive().parse(locationId)));
 }

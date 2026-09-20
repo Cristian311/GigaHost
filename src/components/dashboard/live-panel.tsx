@@ -1,7 +1,6 @@
 "use client";
 
 import { Activity, Cpu, HardDrive, MemoryStick, Terminal, Users } from "lucide-react";
-import { ConsoleInput } from "./console-input";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
@@ -11,6 +10,8 @@ import { useRouter } from "@/i18n/navigation";
 import { formatUptime } from "@/lib/dates";
 import type { ConsoleLine, ResourceUsage } from "@/server/providers/types";
 import { cn } from "@/lib/utils";
+import { ConsoleInput } from "./console-input";
+import { useServerSocket } from "./use-server-socket";
 
 const TRANSITIONAL: ServerStatus[] = ["PENDING", "INSTALLING", "STARTING", "STOPPING"];
 
@@ -18,19 +19,24 @@ type UsagePayload = { status: ServerStatus; usage: ResourceUsage };
 type ConsolePayload = { status: ServerStatus; lines: ConsoleLine[] };
 
 /**
- * Polls usage + console for a server. When the status reported by the API
- * differs from the server-rendered one, the page is refreshed so headers and
- * power controls update as well.
+ * Usage is polled; the console streams over the node's websocket when the
+ * provider offers one and is polled otherwise (mock). Whenever the reported
+ * status differs from the server-rendered one the page is refreshed so the
+ * header and power controls update too.
  */
 export function LivePanel({ serverId, status }: { serverId: string; status: ServerStatus }) {
   const t = useTranslations("dashboard.server");
   const router = useRouter();
   const [usage, setUsage] = useState<ResourceUsage | null>(null);
-  const [lines, setLines] = useState<ConsoleLine[]>([]);
+  const [polledLines, setPolledLines] = useState<ConsoleLine[]>([]);
   // Bumped after a command is sent, so its answer shows up without waiting for
-  // the next poll.
+  // the next poll. Only matters while polling; a live socket pushes it anyway.
   const [refreshKey, setRefreshKey] = useState(0);
   const consoleRef = useRef<HTMLDivElement>(null);
+
+  const socket = useServerSocket(serverId, status !== "SUSPENDED", () => router.refresh());
+  const streaming = socket.state !== "unavailable";
+  const lines = streaming ? socket.lines : polledLines;
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +46,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       try {
         const [usageRes, consoleRes] = await Promise.all([
           fetch(`/api/servers/${serverId}/usage`, { cache: "no-store" }),
-          fetch(`/api/servers/${serverId}/console?limit=80`, { cache: "no-store" }),
+          streaming
+            ? null
+            : fetch(`/api/servers/${serverId}/console?limit=80`, { cache: "no-store" }),
         ]);
         if (cancelled) return;
         if (usageRes.ok) {
@@ -48,9 +56,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
           setUsage(data.usage);
           if (data.status !== status) router.refresh();
         }
-        if (consoleRes.ok) {
+        if (consoleRes?.ok) {
           const data = (await consoleRes.json()) as ConsolePayload;
-          setLines(data.lines);
+          setPolledLines(data.lines);
         }
       } catch {
         // Network hiccup: keep the last known values.
@@ -63,7 +71,7 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       cancelled = true;
       clearInterval(id);
     };
-  }, [serverId, status, router, refreshKey]);
+  }, [serverId, status, router, streaming, refreshKey]);
 
   useEffect(() => {
     const el = consoleRef.current;
@@ -148,6 +156,22 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
       <section className="flex flex-col rounded-2xl border border-white/5 bg-card p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase">
           <Terminal className="size-4" /> {t("console")}
+          {streaming ? (
+            <span
+              className={cn(
+                "ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium normal-case",
+                socket.state === "live" ? "text-success" : "text-muted-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  socket.state === "live" ? "bg-success" : "animate-pulse bg-muted-foreground",
+                )}
+              />
+              {socket.state === "live" ? t("consoleLive") : t("consoleConnecting")}
+            </span>
+          ) : null}
         </h2>
         <div
           ref={consoleRef}
@@ -155,6 +179,21 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
         >
           {lines.length === 0 ? (
             <p className="text-muted-foreground">{t("consoleEmpty")}</p>
+          ) : streaming ? (
+            // Real server output already carries its own timestamp and level.
+            lines.map((line, index) => (
+              <p
+                key={`${line.ts}-${index}`}
+                className={cn(
+                  "whitespace-pre-wrap",
+                  line.level === "info" && "text-foreground/90",
+                  line.level === "warn" && "text-warning",
+                  line.level === "error" && "text-destructive",
+                )}
+              >
+                {line.text}
+              </p>
+            ))
           ) : (
             lines.map((line, index) => (
               <p key={`${line.ts}-${index}`} className="whitespace-pre-wrap">
@@ -175,6 +214,9 @@ export function LivePanel({ serverId, status }: { serverId: string; status: Serv
             ))
           )}
         </div>
+        {/* Commands go over the API route for both providers: it also handles
+            "stop" and "restart" as power actions. A live socket echoes the
+            output back on its own. */}
         <ConsoleInput
           serverId={serverId}
           disabled={status !== "RUNNING"}

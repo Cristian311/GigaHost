@@ -25,6 +25,11 @@ export default async function AdminGamesPage({ params }: PageProps<"/[locale]/ad
         available: g.available,
         unavailableReason: g.unavailableReason,
         sortOrder: g.sortOrder,
+        pterodactylNestId: g.pterodactylNestId,
+        pterodactylEggId: g.pterodactylEggId,
+        dockerImage: g.dockerImage,
+        versionVariable: g.versionVariable,
+        eggVariables: g.eggVariables,
       }))}
     />
   );

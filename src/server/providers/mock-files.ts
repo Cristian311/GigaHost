@@ -189,7 +189,8 @@ function generic(ctx: SeedContext): SeedFile[] {
 }
 
 const TEMPLATES: Record<string, (ctx: SeedContext) => SeedFile[]> = {
-  "minecraft-java": minecraftJava,
+  "minecraft-paper": minecraftJava,
+  "minecraft-vanilla": minecraftJava,
   "minecraft-bedrock": minecraftBedrock,
   rust,
   valheim,

@@ -22,8 +22,8 @@ describe("sitemap", () => {
     const entries = await sitemap();
     const urls = entries.map((e) => e.url);
 
-    expect(urls).toContain(`${BASE}/en/games/minecraft-java`);
-    expect(urls).toContain(`${BASE}/ro/games/minecraft-java`);
+    expect(urls).toContain(`${BASE}/en/games/minecraft-paper`);
+    expect(urls).toContain(`${BASE}/ro/games/minecraft-paper`);
     expect(urls).not.toContain(`${BASE}/en/games/roblox`);
   });
 

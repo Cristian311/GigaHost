@@ -10,6 +10,7 @@ export type AuditAction =
   | "coupon.delete"
   | "server.suspend"
   | "server.unsuspend"
+  | "server.delete"
   | "user.role"
   | "billing.run";
 

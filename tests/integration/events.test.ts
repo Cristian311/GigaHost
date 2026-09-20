@@ -27,7 +27,7 @@ describe("server activity log", () => {
     expect(events[0].type).toBe("CREATED");
     expect(events[0].message).toBe("Logged server");
     expect(events[0].meta).toMatchObject({
-      gameSlug: "minecraft-java",
+      gameSlug: "minecraft-paper",
       regionCode: "eu-de",
       ramGb: 8,
     });

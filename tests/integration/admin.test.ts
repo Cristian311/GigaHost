@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
+import { upsertGameSchema, upsertRegionSchema } from "@/lib/validation/admin";
 import {
   deleteGame,
   deleteRegion,
@@ -136,40 +137,44 @@ describe("admin", () => {
   });
 
   it("creates, updates and hides games", async () => {
-    const created = await upsertGame({
-      slug: "test-game",
-      name: "Test Game",
-      tagline: "Just a test",
-      description: "A game used by the test suite.",
-      image: "/games/terraria.svg",
-      accentColor: "#123456",
-      minRamGb: 2,
-      recommendedRamGb: 4,
-      minCpu: 1,
-      minStorageGb: 10,
-      versions: "1.0, 2.0",
-      available: true,
-      sortOrder: 50,
-    });
+    const created = await upsertGame(
+      upsertGameSchema.parse({
+        slug: "test-game",
+        name: "Test Game",
+        tagline: "Just a test",
+        description: "A game used by the test suite.",
+        image: "/games/terraria.svg",
+        accentColor: "#123456",
+        minRamGb: 2,
+        recommendedRamGb: 4,
+        minCpu: 1,
+        minStorageGb: 10,
+        versions: "1.0, 2.0",
+        available: true,
+        sortOrder: 50,
+      }),
+    );
     expect(JSON.parse(created.versions)).toEqual(["1.0", "2.0"]);
 
-    const updated = await upsertGame({
-      id: created.id,
-      slug: "test-game",
-      name: "Test Game Renamed",
-      tagline: "Still a test",
-      description: "A game used by the test suite.",
-      image: "/games/terraria.svg",
-      accentColor: "#123456",
-      minRamGb: 2,
-      recommendedRamGb: 4,
-      minCpu: 1,
-      minStorageGb: 10,
-      versions: "1.0",
-      available: false,
-      unavailableReason: "Testing",
-      sortOrder: 50,
-    });
+    const updated = await upsertGame(
+      upsertGameSchema.parse({
+        id: created.id,
+        slug: "test-game",
+        name: "Test Game Renamed",
+        tagline: "Still a test",
+        description: "A game used by the test suite.",
+        image: "/games/terraria.svg",
+        accentColor: "#123456",
+        minRamGb: 2,
+        recommendedRamGb: 4,
+        minCpu: 1,
+        minStorageGb: 10,
+        versions: "1.0",
+        available: false,
+        unavailableReason: "Testing",
+        sortOrder: 50,
+      }),
+    );
     expect(updated.name).toBe("Test Game Renamed");
     expect(updated.available).toBe(false);
     expect(updated.unavailableReason).toBe("Testing");
@@ -191,27 +196,31 @@ describe("admin", () => {
   });
 
   it("manages regions", async () => {
-    const region = await upsertRegion({
-      code: "ap-sg",
-      name: "Singapore",
-      country: "Singapore",
-      flag: "🇸🇬",
-      priceMultiplier: 1.25,
-      active: true,
-      sortOrder: 9,
-    });
+    const region = await upsertRegion(
+      upsertRegionSchema.parse({
+        code: "ap-sg",
+        name: "Singapore",
+        country: "Singapore",
+        flag: "🇸🇬",
+        priceMultiplier: 1.25,
+        active: true,
+        sortOrder: 9,
+      }),
+    );
     expect(region.priceMultiplier).toBe(1.25);
 
-    const updated = await upsertRegion({
-      id: region.id,
-      code: "ap-sg",
-      name: "Singapore",
-      country: "Singapore",
-      flag: "🇸🇬",
-      priceMultiplier: 1.3,
-      active: false,
-      sortOrder: 9,
-    });
+    const updated = await upsertRegion(
+      upsertRegionSchema.parse({
+        id: region.id,
+        code: "ap-sg",
+        name: "Singapore",
+        country: "Singapore",
+        flag: "🇸🇬",
+        priceMultiplier: 1.3,
+        active: false,
+        sortOrder: 9,
+      }),
+    );
     expect(updated.active).toBe(false);
 
     expect((await listRegions()).some((r) => r.code === "ap-sg")).toBe(true);

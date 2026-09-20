@@ -10,12 +10,13 @@ export function AdminNav() {
   const items = [
     { href: "/admin", label: t("overview") },
     { href: "/admin/servers", label: t("servers") },
+    { href: "/admin/tickets", label: t("tickets") },
+    { href: "/admin/billing", label: t("billing") },
+    { href: "/admin/users", label: t("users") },
     { href: "/admin/games", label: t("games") },
     { href: "/admin/regions", label: t("regions") },
     { href: "/admin/pricing", label: t("pricing") },
     { href: "/admin/coupons", label: t("coupons") },
-    { href: "/admin/billing", label: t("billing") },
-    { href: "/admin/users", label: t("users") },
     { href: "/admin/emails", label: t("emails") },
     { href: "/admin/audit", label: t("audit") },
   ];
@@ -23,7 +24,10 @@ export function AdminNav() {
   return (
     <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-white/5 bg-card/60 p-1">
       {items.map((item) => {
-        const active = pathname === item.href;
+        // Detail pages (e.g. /admin/tickets/123) keep their section highlighted.
+        const active =
+          pathname === item.href ||
+          (item.href !== "/admin" && pathname.startsWith(`${item.href}/`));
         return (
           <Link
             key={item.href}

@@ -20,21 +20,62 @@ type GameSeed = {
   versions: string[];
   available?: boolean;
   unavailableReason?: string;
+  /** Defaults to /games/<slug>.svg. */
+  image?: string;
+  /** Provisioning defaults, applied only when the game is first created. */
+  versionVariable?: string;
+  eggVariables?: Record<string, string>;
+};
+
+const MINECRAFT_VERSIONS = [
+  "Latest",
+  "1.21.8",
+  "1.21.4",
+  "1.20.6",
+  "1.20.4",
+  "1.20.1",
+  "1.19.4",
+  "1.18.2",
+  "1.16.5",
+  "1.12.2",
+];
+
+const PAPER_DEFAULTS = {
+  versionVariable: "MINECRAFT_VERSION",
+  eggVariables: { SERVER_JARFILE: "server.jar", BUILD_NUMBER: "latest" },
 };
 
 const games: GameSeed[] = [
   {
-    slug: "minecraft-java",
-    name: "Minecraft: Java Edition",
-    tagline: "Vanilla, Paper, Fabric, Forge – one click.",
+    slug: "minecraft-paper",
+    name: "Minecraft: Java (Paper)",
+    tagline: "Fast, plugin-ready Java server.",
     description:
-      "Run any Minecraft Java server flavour with instant modpack and plugin support, automatic backups and a full file manager.",
+      "Paper is a high-performance fork of the official server with Bukkit and Spigot plugin support. Pick any version from 1.12 to the latest release; the right Java version is chosen for you.",
     accentColor: "#22c55e",
     minRamGb: 2,
     recommendedRamGb: 6,
     minCpu: 1,
     minStorageGb: 10,
-    versions: ["1.21.8", "1.21.4", "1.20.6", "1.20.1", "1.19.4", "1.18.2", "1.16.5", "1.12.2"],
+    versions: MINECRAFT_VERSIONS,
+    image: "/games/minecraft-java.svg",
+    ...PAPER_DEFAULTS,
+  },
+  {
+    slug: "minecraft-vanilla",
+    name: "Minecraft: Java (Vanilla)",
+    tagline: "The official server, exactly as Mojang ships it.",
+    description:
+      "The unmodified Minecraft Java server. Ideal for survival worlds with friends when you do not need plugins.",
+    accentColor: "#4ade80",
+    minRamGb: 2,
+    recommendedRamGb: 4,
+    minCpu: 1,
+    minStorageGb: 10,
+    versions: MINECRAFT_VERSIONS,
+    image: "/games/minecraft-java.svg",
+    versionVariable: "VANILLA_VERSION",
+    eggVariables: { SERVER_JARFILE: "server.jar" },
   },
   {
     slug: "minecraft-bedrock",
@@ -182,26 +223,45 @@ const regions = [
 export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}) {
   const log = options.log === false ? () => {} : console.log;
   log("Seeding games…");
+
+  // Earlier seeds had a single "minecraft-java" game. Rename it to Paper so
+  // existing servers keep pointing at a valid game.
+  const legacy = await prisma.game.findUnique({ where: { slug: "minecraft-java" } });
+  const paper = await prisma.game.findUnique({ where: { slug: "minecraft-paper" } });
+  if (legacy && !paper) {
+    await prisma.game.update({
+      where: { id: legacy.id },
+      data: {
+        slug: "minecraft-paper",
+        versionVariable: PAPER_DEFAULTS.versionVariable,
+        eggVariables: JSON.stringify(PAPER_DEFAULTS.eggVariables),
+      },
+    });
+  }
+
   for (const [index, game] of games.entries()) {
-    const { versions, available = true, unavailableReason = null, ...rest } = game;
+    const {
+      versions,
+      available = true,
+      unavailableReason = null,
+      image,
+      versionVariable = null,
+      eggVariables = {},
+      ...rest
+    } = game;
+    const catalog = {
+      ...rest,
+      versions: JSON.stringify(versions),
+      available,
+      unavailableReason,
+      image: image ?? `/games/${game.slug}.svg`,
+      sortOrder: index,
+    };
     await prisma.game.upsert({
       where: { slug: game.slug },
-      update: {
-        ...rest,
-        versions: JSON.stringify(versions),
-        available,
-        unavailableReason,
-        image: `/games/${game.slug}.svg`,
-        sortOrder: index,
-      },
-      create: {
-        ...rest,
-        versions: JSON.stringify(versions),
-        available,
-        unavailableReason,
-        image: `/games/${game.slug}.svg`,
-        sortOrder: index,
-      },
+      update: catalog,
+      // Pterodactyl settings are only defaults: admins tune them in /admin/games.
+      create: { ...catalog, versionVariable, eggVariables: JSON.stringify(eggVariables) },
     });
   }
 

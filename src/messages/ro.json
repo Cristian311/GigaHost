@@ -40,7 +40,9 @@
     "account": "Cont",
     "admin": "Admin",
     "logout": "Deconectare",
-    "openMenu": "Deschide meniul"
+    "openMenu": "Deschide meniul",
+    "support": "Suport",
+    "chat": "Chat live"
   },
   "footer": {
     "tagline": "Servere de jocuri performante, configurate în câteva secunde.",
@@ -169,7 +171,10 @@
     "notAvailableTitle": "Acest joc nu poate fi găzduit",
     "notAvailableDesc": "{reason}",
     "backToGames": "Toate jocurile",
-    "notFound": "Jocul nu a fost găsit"
+    "notFound": "Jocul nu a fost găsit",
+    "comingSoon": "În curând",
+    "comingSoonTitle": "În curând",
+    "comingSoonDesc": "Pregătim servere pentru acest joc. Minecraft este disponibil deja."
   },
   "configure": {
     "title": "Construiește-ți serverul",
@@ -225,7 +230,12 @@
       "coupon_min_order": "Comanda ta este sub valoarea minimă pentru acest cupon.",
       "payment_failed": "Plata a fost refuzată. Verifică metoda de plată.",
       "email_not_verified": "Confirmă adresa de email înainte să comanzi. Linkul este în inbox.",
-      "rate_limited": "Prea multe comenzi într-un timp scurt. Așteaptă câteva minute."
+      "rate_limited": "Prea multe comenzi într-un timp scurt. Așteaptă câteva minute.",
+      "game_not_configured": "Acest joc nu poate fi comandat încă.",
+      "region_not_configured": "Această locație nu acceptă încă servere noi.",
+      "no_capacity": "Locația este plină momentan. Alege alta sau încearcă mai târziu.",
+      "provider_unavailable": "Infrastructura de servere nu răspunde momentan. Nu ai fost taxat; încearcă din nou în câteva minute.",
+      "provider_error": "Serverul nu a putut fi creat. Nu ai fost taxat; încearcă din nou sau contactează suportul."
     },
     "coupon": {
       "label": "Cod de reducere",
@@ -369,8 +379,19 @@
       "errors": {
         "invalid_transition": "Acțiunea nu este disponibilă în starea curentă.",
         "server_not_found": "Serverul nu a fost găsit.",
-        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
-      }
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou.",
+        "provider_unavailable": "Infrastructura de servere nu răspunde momentan. Încearcă din nou peste un minut.",
+        "provider_error": "Infrastructura de servere a respins acțiunea."
+      },
+      "suspendedHint": "Serverul a fost suspendat de un administrator. Contactează suportul pentru reactivare.",
+      "errorHint": "Ceva nu a funcționat la acest server. Contactează suportul și menționează numele serverului.",
+      "adminErrorLabel": "Eroare de la provider (vizibilă doar pentru admini)",
+      "consoleLive": "Live",
+      "consoleConnecting": "Se conectează…",
+      "commandPlaceholder": "Scrie o comandă, de ex. say salut",
+      "commandSend": "Trimite",
+      "commandFailed": "Comanda nu a putut fi trimisă.",
+      "commandOffline": "Pornește serverul ca să trimiți comenzi."
     },
     "tabs": {
       "overview": "Prezentare",
@@ -684,7 +705,8 @@
       "billing": "Facturare",
       "coupons": "Cupoane",
       "emails": "Emailuri",
-      "audit": "Jurnal de audit"
+      "audit": "Jurnal de audit",
+      "tickets": "Suport"
     },
     "servers": {
       "title": "Toate serverele",
@@ -700,7 +722,25 @@
       "suspendTitle": "Suspenzi acest server?",
       "suspendDesc": "Serverul trece offline, iar proprietarul nu îl mai poate porni până nu îl reactivezi.",
       "reason": "Motiv (opțional)",
-      "empty": "Niciun server încă."
+      "empty": "Niciun server încă.",
+      "searchPlaceholder": "Caută după nume, IP sau emailul proprietarului",
+      "search": "Caută",
+      "all": "Toate",
+      "server": "Server",
+      "address": "Adresă",
+      "delete": "Șterge",
+      "suspendConfirm": "Suspenzi acest server? Se oprește, iar proprietarul nu îl mai poate porni.",
+      "deleteConfirm": "Ștergi acest server? Este eliminat de la provider, iar abonamentul se anulează. Acțiunea este ireversibilă.",
+      "suspended": "Server suspendat.",
+      "unsuspended": "Server reactivat.",
+      "deleted": "Server șters.",
+      "limitNotice": "Se afișează cele mai recente 200 de servere.",
+      "errors": {
+        "invalid_transition": "Acțiunea nu este disponibilă în starea curentă.",
+        "server_not_found": "Serverul nu a fost găsit.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      },
+      "lastError": "Eroare"
     },
     "regions": {
       "title": "Regiuni",
@@ -715,14 +755,31 @@
       "sortOrder": "Ordine",
       "delete": "Șterge",
       "deleteConfirm": "Ștergi această regiune? Dacă există servere care o folosesc, va fi doar dezactivată.",
-      "saved": "Regiune salvată."
+      "saved": "Regiune salvată.",
+      "multiplier": "Multiplicator de preț",
+      "servers": "Servere",
+      "hint": "Regiunile nu se șterg, pentru că serverele depind de ele. Dezactivează o regiune ca să o ascunzi din configurator.",
+      "errors": {
+        "region_code_taken": "O altă regiune folosește deja acest cod.",
+        "validation": "Verifică câmpurile.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou.",
+        "provider_not_configured": "Setează întâi SERVER_PROVIDER=pterodactyl și variabilele PTERODACTYL_*.",
+        "not_found": "Nu există nimic cu acest ID în panou.",
+        "provider_unavailable": "Panoul nu răspunde.",
+        "provider_error": "Panoul a respins cererea."
+      },
+      "locationId": "ID locație Pterodactyl",
+      "inspect": "Verifică",
+      "nodes": "{count, plural, =0 {niciun nod} one {# nod} few {# noduri} other {# de noduri}}"
     },
     "stats": {
       "users": "Utilizatori",
       "servers": "Servere active",
       "running": "Pornite acum",
       "orders": "Comenzi plătite",
-      "revenue": "Venit"
+      "revenue": "Venit",
+      "revenue30d": "Venit (30 de zile)",
+      "renewalsDue": "Reînnoiri în 7 zile"
     },
     "games": {
       "title": "Jocuri",
@@ -744,7 +801,25 @@
       "sortOrder": "Ordine",
       "delete": "Șterge",
       "deleteConfirm": "Ștergi acest joc? Dacă există servere care îl folosesc, va fi doar ascuns.",
-      "saved": "Joc salvat."
+      "saved": "Joc salvat.",
+      "pterodactyl": "Pterodactyl",
+      "nestId": "ID nest",
+      "eggId": "ID egg",
+      "versionVariable": "Variabila pentru versiune",
+      "dockerImage": "Imagine Docker (opțional)",
+      "dockerImageHint": "Gol = Java ales după versiune",
+      "eggVariables": "Variabile fixe pentru egg (JSON)",
+      "inspect": "Verifică egg-ul",
+      "inspectVariables": "Variabilele egg-ului",
+      "notConfigured": "Neconfigurat",
+      "errors": {
+        "validation": "Verifică câmpurile.",
+        "provider_not_configured": "Setează întâi SERVER_PROVIDER=pterodactyl și variabilele PTERODACTYL_*.",
+        "not_found": "Nu există nimic cu acest ID în panou.",
+        "provider_unavailable": "Panoul nu răspunde.",
+        "provider_error": "Panoul a respins cererea.",
+        "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+      }
     },
     "pricing": {
       "title": "Prețuri",
@@ -788,7 +863,8 @@
       "unpaidSince": "Neplătit din",
       "attempts": "Încercări",
       "willCancel": "se va anula",
-      "empty": "Nimic aici."
+      "empty": "Nimic aici.",
+      "limitNotice": "Se afișează cele mai recente 200 de înregistrări."
     },
     "coupons": {
       "add": "Cupon nou",
@@ -858,6 +934,19 @@
         "user.role": "Rol schimbat",
         "billing.run": "Ciclu de facturare rulat"
       }
+    },
+    "overview": {
+      "serversByStatus": "Servere după status",
+      "recentOrders": "Comenzi recente",
+      "recentUsers": "Utilizatori noi",
+      "empty": "Nimic încă.",
+      "viewAll": "Vezi tot"
+    },
+    "provider": {
+      "label": "Provizionare",
+      "mock": "Simulată (mock)",
+      "connected": "Conectat",
+      "unreachable": "Indisponibil"
     }
   },
   "errors": {
@@ -901,6 +990,110 @@
       "rate_limited": "Ai cerut asta deja de câteva ori. Încearcă mai târziu.",
       "already_verified": "Adresa ta este deja confirmată. Reîncarcă pagina.",
       "internal_error": "Nu am putut trimite emailul. Încearcă din nou."
+    }
+  },
+  "support": {
+    "title": "Suport",
+    "subtitle": "Deschide un tichet sau vorbește live cu echipa noastră.",
+    "newTicket": "Tichet nou",
+    "newTicketSubtitle": "Descrie problema și îți răspundem cât mai repede.",
+    "liveChat": "Chat live",
+    "liveChatSubtitle": "Vorbește în timp real cu echipa noastră.",
+    "openChat": "Ai un chat live deschis.",
+    "continueChat": "Continuă chatul",
+    "empty": "Nu ai deschis niciun tichet încă.",
+    "subject": "Subiect",
+    "subjectPlaceholder": "ex. Serverul nu pornește după un update",
+    "category": "Categorie",
+    "priority": "Prioritate",
+    "status": "Status",
+    "server": "Server",
+    "noServer": "Niciun server anume",
+    "lastActivity": "Ultima activitate",
+    "message": "Mesaj",
+    "messagePlaceholder": "Spune-ne ce s-a întâmplat, la ce te așteptai și ce ai încercat deja.",
+    "submit": "Deschide tichetul",
+    "created": "Tichet deschis. Îți răspundem chiar aici.",
+    "backToSupport": "Toate tichetele",
+    "replyPlaceholder": "Scrie un răspuns…",
+    "chatPlaceholder": "Scrie un mesaj…",
+    "send": "Trimite",
+    "sendHintTicket": "Ctrl + Enter pentru a trimite",
+    "sendHintChat": "Enter pentru a trimite, Shift + Enter pentru rând nou",
+    "close": "Închide tichetul",
+    "closeConfirm": "Închizi acest tichet? Poți deschide oricând unul nou.",
+    "closedToast": "Închis.",
+    "closedNotice": "Conversația este închisă. Deschide un tichet nou dacă mai ai nevoie de ajutor.",
+    "endChat": "Încheie chatul",
+    "endChatConfirm": "Închei acest chat?",
+    "chatEnded": "Chatul s-a încheiat.",
+    "newChat": "Începe un chat nou",
+    "chatWelcome": "Salut! Un membru al echipei îți va răspunde chiar aici.",
+    "staffOnline": "Suportul este online",
+    "staffOffline": "Suportul este offline. Lasă un mesaj și îți răspundem imediat ce revenim.",
+    "staff": "Staff",
+    "supportTeam": "Suport GigaHost",
+    "you": "Tu",
+    "customer": "Client",
+    "internalNote": "Notă internă",
+    "internalNoteHint": "vizibilă doar pentru staff",
+    "chatSubject": "Chat live",
+    "statuses": {
+      "OPEN": "Deschis",
+      "PENDING": "Așteaptă răspunsul tău",
+      "RESOLVED": "Rezolvat",
+      "CLOSED": "Închis"
+    },
+    "priorities": {
+      "LOW": "Scăzută",
+      "NORMAL": "Normală",
+      "HIGH": "Ridicată"
+    },
+    "categories": {
+      "GENERAL": "General",
+      "TECHNICAL": "Tehnic",
+      "BILLING": "Facturare",
+      "ABUSE": "Raportare abuz"
+    },
+    "errors": {
+      "ticket_not_found": "Acest tichet nu există.",
+      "ticket_closed": "Acest tichet este închis.",
+      "server_not_found": "Serverul nu a fost găsit.",
+      "validation": "Verifică formularul și încearcă din nou.",
+      "unauthorized": "Sesiunea a expirat. Te rugăm să te autentifici din nou.",
+      "forbidden": "Nu ai acces la această resursă.",
+      "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+    },
+    "admin": {
+      "all": "Toate",
+      "needsReply": "Necesită răspuns",
+      "chats": "Chaturi live",
+      "search": "Caută",
+      "searchPlaceholder": "Caută după subiect, nume sau email",
+      "ticket": "Tichet",
+      "customer": "Client",
+      "assignee": "Responsabil",
+      "unassigned": "Neatribuit",
+      "assignToMe": "Preia tichetul",
+      "unassign": "Renunță",
+      "details": "Detalii",
+      "customerSince": "Client din {date}",
+      "linkedServer": "Server asociat",
+      "created": "Deschis",
+      "updated": "Tichet actualizat.",
+      "empty": "Niciun tichet nu corespunde.",
+      "limitNotice": "Se afișează cele mai recente 200 de tichete.",
+      "backToTickets": "Toate tichetele",
+      "kinds": {
+        "TICKET": "Tichet",
+        "CHAT": "Chat"
+      },
+      "statuses": {
+        "OPEN": "Deschis",
+        "PENDING": "Așteaptă clientul",
+        "RESOLVED": "Rezolvat",
+        "CLOSED": "Închis"
+      }
     }
   }
 }

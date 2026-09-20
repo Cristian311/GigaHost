@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Ban, Cpu, HardDrive, MemoryStick, Tag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Ban, Clock, Cpu, HardDrive, MemoryStick, Tag } from "lucide-react";
 import { getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { parseVersions } from "@/lib/games";
+import { COMING_SOON, parseVersions } from "@/lib/games";
 import { calculatePrice, formatMoney } from "@/lib/pricing/calculate-price";
+import { cn } from "@/lib/utils";
 import { getActivePricing, getGameBySlug, toPricingTable } from "@/server/services/pricing-service";
 
 export async function generateMetadata({
@@ -30,6 +31,7 @@ export default async function GameDetailPage({ params }: PageProps<"/[locale]/ga
   ]);
   if (!game) notFound();
 
+  const comingSoon = !game.available && game.unavailableReason === COMING_SOON;
   const table = toPricingTable(pricing);
   const versions = parseVersions(game.versions);
   const starting = calculatePrice(
@@ -137,12 +139,21 @@ export default async function GameDetailPage({ params }: PageProps<"/[locale]/ga
               </>
             ) : (
               <div className="text-center">
-                <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/15 text-destructive">
-                  <Ban className="size-6" />
+                <span
+                  className={cn(
+                    "mx-auto flex size-12 items-center justify-center rounded-full",
+                    comingSoon ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
+                  )}
+                >
+                  {comingSoon ? <Clock className="size-6" /> : <Ban className="size-6" />}
                 </span>
-                <h2 className="mt-4 text-lg font-semibold">{t("notAvailableTitle")}</h2>
+                <h2 className="mt-4 text-lg font-semibold">
+                  {comingSoon ? t("comingSoonTitle") : t("notAvailableTitle")}
+                </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {t("notAvailableDesc", { reason: game.unavailableReason ?? "" })}
+                  {comingSoon
+                    ? t("comingSoonDesc")
+                    : t("notAvailableDesc", { reason: game.unavailableReason ?? "" })}
                 </p>
                 <Button variant="outline" className="mt-6 w-full" render={<Link href="/games" />}>
                   {t("backToGames")}

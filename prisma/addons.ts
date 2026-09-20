@@ -12,7 +12,7 @@ export type AddonSeed = {
   fileName: string;
 };
 
-const MC = ["minecraft-java"];
+const MC = ["minecraft-paper", "minecraft-vanilla"];
 
 export const addons: AddonSeed[] = [
   {

@@ -40,6 +40,15 @@ export const powerActionSchema = z.object({
   action: z.enum(["start", "stop", "restart"]),
 });
 
+export const serverCommandSchema = z.object({
+  command: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[^\r\n]*$/, "single_line"),
+});
+
 export const renameServerSchema = z.object({
   name: z.string().trim().min(3).max(40),
 });

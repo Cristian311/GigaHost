@@ -14,7 +14,7 @@ import { createServerFor, createUser, endPeriod, resetData, setStatus } from "..
 
 const INPUT = {
   name: "Stripe Server",
-  gameSlug: "minecraft-java",
+  gameSlug: "minecraft-paper",
   ramGb: 4,
   vcpu: 2,
   storageGb: 20,

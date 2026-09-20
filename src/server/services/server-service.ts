@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/db";
 import {
+  type Game,
   type Prisma,
+  type Region,
   type Server,
   type ServerEventType,
   type ServerStatus,
 } from "@/generated/prisma/client";
 import { getProvider } from "@/server/providers";
-import type { ServerRef } from "@/server/providers/types";
+import { toPterodactylTarget } from "@/server/providers/targets";
+import type { ConsoleAccess, ProviderStatus, ServerRef } from "@/server/providers/types";
 import { AppError } from "@/server/errors";
 import type { PowerAction } from "@/lib/validation/server";
 import { listEvents, recordEvent } from "./event-service";
@@ -23,15 +26,16 @@ export type ServerWithRelations = Prisma.ServerGetPayload<{
   include: typeof serverInclude;
 }>;
 
-export function toRef(
-  server: Pick<Server, "providerId" | "status" | "statusChangedAt" | "ramGb" | "storageGb">,
-): ServerRef | null {
+export function toRef(server: Server): ServerRef | null {
   if (!server.providerId) return null;
   return {
     providerId: server.providerId,
+    identifier: server.providerIdentifier,
+    internalId: server.providerInternalId,
     status: server.status,
     statusChangedAt: server.statusChangedAt,
     ramGb: server.ramGb,
+    vcpu: server.vcpu,
     storageGb: server.storageGb,
   };
 }
@@ -46,25 +50,33 @@ const COMPLETION_EVENTS: Partial<
 };
 
 /** Asks the provider for the live status and persists it if it changed. */
-export async function syncStatus(
-  server: ServerWithRelations,
-): Promise<ServerWithRelations> {
+export async function syncStatus<T extends Server>(server: T): Promise<T> {
   const ref = toRef(server);
   if (!ref) return server;
-  const live = await getProvider().getStatus(ref);
+  let live: ProviderStatus;
+  try {
+    live = await getProvider().getStatus(ref);
+  } catch (error) {
+    // Show the last known state instead of failing the page when the provider
+    // is unreachable or does not recognise the server.
+    if (error instanceof AppError) {
+      console.warn(`[servers] status sync failed for ${server.id}: ${error.message}`);
+      return server;
+    }
+    throw error;
+  }
   if (live === server.status) return server;
-
-  const updated = await prisma.server.update({
+  const statusChangedAt = new Date();
+  await prisma.server.update({
     where: { id: server.id },
-    data: { status: live, statusChangedAt: new Date() },
-    include: serverInclude,
+    data: { status: live, statusChangedAt },
   });
 
   const eventType = COMPLETION_EVENTS[server.status]?.[live];
   if (eventType) await recordEvent(server.id, eventType);
   if (eventType === "INSTALLED") await notifyServerReady(server.id);
 
-  return updated;
+  return { ...server, status: live, statusChangedAt };
 }
 
 export async function listServersForUser(userId: string) {
@@ -142,8 +154,7 @@ export async function renameServer(serverId: string, userId: string, name: strin
   });
 }
 
-export async function deleteServer(serverId: string, userId: string) {
-  const server = await getServerForUser(serverId, userId);
+async function destroyServer(server: Server) {
   const ref = toRef(server);
   if (ref) await getProvider().deleteServer(ref);
 
@@ -163,6 +174,10 @@ export async function deleteServer(serverId: string, userId: string) {
   await recordEvent(server.id, "DELETED", server.name);
 }
 
+export async function deleteServer(serverId: string, userId: string) {
+  await destroyServer(await getServerForUser(serverId, userId));
+}
+
 export async function getServerUsage(serverId: string, userId: string) {
   const server = await getServerForUser(serverId, userId);
   const ref = toRef(server);
@@ -177,77 +192,159 @@ export async function getServerConsole(serverId: string, userId: string, limit =
   return getProvider().getConsoleLines(ref, limit);
 }
 
-/**
- * Internal: called by the order service once payment succeeded. Never throws
- * for a provisioning failure; the returned server is then in ERROR.
- */
-export async function provisionServer(params: {
+// Console commands go through console-service: it also turns "stop" and
+// "restart" into power actions instead of passing them to the game server.
+
+/** Websocket credentials for the owner's browser, or null to fall back to polling. */
+export async function getServerConsoleAccess(
+  serverId: string,
+  userId: string,
+): Promise<ConsoleAccess | null> {
+  const server = await getServerForUser(serverId, userId);
+  const ref = toRef(server);
+  if (!ref || server.status === "SUSPENDED") return null;
+  try {
+    return await getProvider().getConsoleAccess(ref);
+  } catch (error) {
+    if (error instanceof AppError && error.code === "invalid_transition") return null;
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin: operate on any server regardless of owner.
+// ---------------------------------------------------------------------------
+
+export const adminServerInclude = {
+  ...serverInclude,
+  owner: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.ServerInclude;
+
+export async function listAllServers(filter: { status?: ServerStatus; q?: string } = {}) {
+  const q = filter.q?.trim();
+  const servers = await prisma.server.findMany({
+    where: {
+      status: filter.status ?? { not: "DELETED" },
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { ip: { contains: q } },
+              { owner: { email: { contains: q } } },
+            ],
+          }
+        : {}),
+    },
+    include: adminServerInclude,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  return Promise.all(servers.map(syncStatus));
+}
+
+async function getServerById(serverId: string) {
+  const server = await prisma.server.findFirst({
+    where: { id: serverId, status: { not: "DELETED" } },
+  });
+  if (!server) throw new AppError("server_not_found", 404);
+  return syncStatus(server);
+}
+
+// Suspending and unsuspending live in admin-service: they also carry a reason
+// and write to the server's activity log.
+
+export async function adminDeleteServer(serverId: string) {
+  await destroyServer(await getServerById(serverId));
+}
+
+// ---------------------------------------------------------------------------
+// Provisioning (called by the order service)
+// ---------------------------------------------------------------------------
+
+export type ServerSpec = {
   userId: string;
   name: string;
-  gameId: string;
-  gameSlug: string;
   gameVersion?: string | null;
-  regionId: string;
-  regionCode: string;
   ramGb: number;
   vcpu: number;
   storageGb: number;
-}) {
-  const server = await prisma.server.create({
+  game: Game;
+  region: Region;
+};
+
+const MAX_ERROR_LENGTH = 500;
+
+/** Inserts the PENDING row an order points at before anything is provisioned. */
+export async function createServerRecord(spec: ServerSpec) {
+  return prisma.server.create({
     data: {
-      name: params.name,
-      ownerId: params.userId,
-      gameId: params.gameId,
-      regionId: params.regionId,
-      ramGb: params.ramGb,
-      vcpu: params.vcpu,
-      storageGb: params.storageGb,
-      gameVersion: params.gameVersion ?? null,
+      name: spec.name,
+      ownerId: spec.userId,
+      gameId: spec.game.id,
+      regionId: spec.region.id,
+      ramGb: spec.ramGb,
+      vcpu: spec.vcpu,
+      storageGb: spec.storageGb,
+      gameVersion: spec.gameVersion ?? null,
       status: "PENDING",
     },
   });
+}
 
+/**
+ * Creates the server on the provider. Never throws for a provisioning failure:
+ * the customer has already paid by this point, so the order must still end up
+ * with an invoice and a subscription. The returned server is then in ERROR,
+ * with `lastError` set for an admin to look at.
+ */
+export async function provisionServer(server: Server, spec: ServerSpec) {
   try {
     const result = await getProvider().createServer({
       serverId: server.id,
-      name: params.name,
-      gameSlug: params.gameSlug,
-      gameVersion: params.gameVersion,
-      ramGb: params.ramGb,
-      vcpu: params.vcpu,
-      storageGb: params.storageGb,
-      regionCode: params.regionCode,
+      name: spec.name,
+      gameSlug: spec.game.slug,
+      gameVersion: spec.gameVersion,
+      ramGb: spec.ramGb,
+      vcpu: spec.vcpu,
+      storageGb: spec.storageGb,
+      regionCode: spec.region.code,
+      pterodactyl: toPterodactylTarget(spec.game, spec.region),
     });
 
     const provisioned = await prisma.server.update({
       where: { id: server.id },
       data: {
         providerId: result.providerId,
+        providerIdentifier: result.identifier,
+        providerInternalId: result.internalId,
         ip: result.ip,
         port: result.port,
         status: "INSTALLING",
         statusChangedAt: new Date(),
+        lastError: null,
       },
       include: serverInclude,
     });
 
-    await recordEvent(server.id, "CREATED", params.name, {
-      gameSlug: params.gameSlug,
-      regionCode: params.regionCode,
-      ramGb: params.ramGb,
-      vcpu: params.vcpu,
-      storageGb: params.storageGb,
+    await recordEvent(server.id, "CREATED", spec.name, {
+      gameSlug: spec.game.slug,
+      regionCode: spec.region.code,
+      ramGb: spec.ramGb,
+      vcpu: spec.vcpu,
+      storageGb: spec.storageGb,
     });
 
     return provisioned;
   } catch (error) {
-    // The customer has already paid at this point, so the order must still end
-    // up with an invoice and a subscription. Hand back the server in ERROR for
-    // an admin to look at instead of failing the whole fulfilment.
     console.error(`Provisioning failed for server ${server.id}`, error);
+    const message = error instanceof Error ? error.message : String(error);
     const failed = await prisma.server.update({
       where: { id: server.id },
-      data: { status: "ERROR", statusChangedAt: new Date() },
+      data: {
+        status: "ERROR",
+        statusChangedAt: new Date(),
+        lastError: message.slice(0, MAX_ERROR_LENGTH),
+      },
       include: serverInclude,
     });
     await recordEvent(server.id, "ERROR", "Provisioning failed");

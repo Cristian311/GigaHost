@@ -184,6 +184,23 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
         </p>
       ) : null}
 
+      {server.status === "SUSPENDED" ? (
+        <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {t("suspendedHint")}
+        </p>
+      ) : null}
+
+      {server.status === "ERROR" ? (
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p>{t("errorHint")}</p>
+          {user.role === "ADMIN" && server.lastError ? (
+            <p className="mt-2 font-mono text-xs break-all opacity-80">
+              {t("adminErrorLabel")}: {server.lastError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <ServerTabs
         panels={{
           overview,

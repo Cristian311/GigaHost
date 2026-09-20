@@ -91,7 +91,7 @@ describe("API route handlers", () => {
   it("returns a price quote and rejects an invalid body", async () => {
     const ok = await quoteRoute(
       post({
-        gameSlug: "minecraft-java",
+        gameSlug: "minecraft-paper",
         ramGb: 8,
         vcpu: 4,
         storageGb: 50,
@@ -102,7 +102,7 @@ describe("API route handlers", () => {
     expect(ok.status).toBe(200);
     expect(await ok.json()).toMatchObject({ breakdown: { totalCents: 28917 } });
 
-    const bad = await quoteRoute(post({ gameSlug: "minecraft-java", ramGb: 8 }));
+    const bad = await quoteRoute(post({ gameSlug: "minecraft-paper", ramGb: 8 }));
     expect(bad.status).toBe(400);
     expect(await bad.json()).toMatchObject({ error: "validation" });
 
@@ -125,7 +125,7 @@ describe("API route handlers", () => {
       versions: string[];
     }>;
     expect(games.find((g) => g.slug === "roblox")?.available).toBe(false);
-    expect(Array.isArray(games.find((g) => g.slug === "minecraft-java")?.versions)).toBe(true);
+    expect(Array.isArray(games.find((g) => g.slug === "minecraft-paper")?.versions)).toBe(true);
   });
 
   it("requires a session for server endpoints", async () => {
@@ -141,7 +141,7 @@ describe("API route handlers", () => {
     const created = await createServerRoute(
       post({
         name: "API server",
-        gameSlug: "minecraft-java",
+        gameSlug: "minecraft-paper",
         ramGb: 8,
         vcpu: 4,
         storageGb: 50,
@@ -248,7 +248,7 @@ describe("API route handlers", () => {
   });
   describe("coupon preview", () => {
     const config = {
-      gameSlug: "minecraft-java",
+      gameSlug: "minecraft-paper",
       ramGb: 8,
       vcpu: 4,
       storageGb: 50,
@@ -383,7 +383,7 @@ describe("API route handlers", () => {
       const user = await createUser();
       const order = await createOrder(user.id, {
         name: "Webhook Server",
-        gameSlug: "minecraft-java",
+        gameSlug: "minecraft-paper",
         ramGb: 4,
         vcpu: 2,
         storageGb: 20,
@@ -407,7 +407,7 @@ describe("API route handlers", () => {
       auth.userId = user.id;
       const order = await createOrder(user.id, {
         name: "Webhook Server",
-        gameSlug: "minecraft-java",
+        gameSlug: "minecraft-paper",
         ramGb: 4,
         vcpu: 2,
         storageGb: 20,
@@ -441,7 +441,7 @@ describe("API route handlers", () => {
   describe("abuse protection", () => {
     const order = {
       name: "Guarded Server",
-      gameSlug: "minecraft-java",
+      gameSlug: "minecraft-paper",
       ramGb: 4,
       vcpu: 2,
       storageGb: 20,
