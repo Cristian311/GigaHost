@@ -8,10 +8,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listAuditLogs } from "@/server/services/audit-service";
+import { requireAdmin } from "@/server/auth-guard";
 
 export default async function AdminAuditPage({ params }: PageProps<"/[locale]/admin/audit">) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireAdmin();
   const [t, format, entries] = await Promise.all([
     getTranslations("admin.audit"),
     getFormatter(),

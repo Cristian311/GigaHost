@@ -8,6 +8,20 @@ export const ADMIN_EMAIL = "admin@gigahost.local";
 
 let userCounter = 0;
 
+/**
+ * The prices the catalog is seeded with. Kept here as the single source the
+ * suite asserts against, and restored on every reset.
+ */
+export const SEEDED_PRICING = {
+  currency: "EUR",
+  basePriceCents: 200,
+  pricePerGbRamCents: 150,
+  pricePerVcpuCents: 200,
+  pricePerGbStorageCents: 10,
+  quarterlyDiscount: 0.05,
+  yearlyDiscount: 0.15,
+} as const;
+
 /** Removes all per-user data but keeps the seeded catalog (games, regions, pricing). */
 export async function resetData() {
   await prisma.auditLog.deleteMany();
@@ -24,6 +38,20 @@ export async function resetData() {
   await prisma.server.deleteMany();
   await prisma.coupon.deleteMany();
   await prisma.user.deleteMany({ where: { email: { not: ADMIN_EMAIL } } });
+
+  // Leases and the invoice counter are cross-cutting state: a lease left behind
+  // by a failed test would make the next billing run report "skipped".
+  await prisma.jobLock.deleteMany();
+  await prisma.cronRun.deleteMany();
+  await prisma.invoiceCounter.deleteMany();
+
+  // Pricing is shared, and the admin suites change it. Without this, whether a
+  // server costs 27.00 depends on which test file ran first — the kind of
+  // order dependence that only shows up when a new file shifts the order.
+  await prisma.pricingConfig.updateMany({
+    where: { active: true },
+    data: { ...SEEDED_PRICING },
+  });
 }
 
 export async function createUser(
@@ -83,6 +111,8 @@ export async function createServerFor(
     regionCode: overrides.regionCode ?? "eu-ro",
     billingPeriod: overrides.billingPeriod ?? "MONTHLY",
     couponCode: overrides.couponCode,
+    // The checkout form requires this tick, so every test order carries it.
+    waiveWithdrawal: true,
   });
   return result;
 }

@@ -32,7 +32,7 @@ import {
 import { recordAudit, type AuditAction } from "@/server/services/audit-service";
 import { deleteCoupon, upsertCoupon } from "@/server/services/coupon-service";
 import { runBillingCycle, type BillingCycleReport } from "@/server/services/renewal-service";
-import { adminDeleteServer } from "@/server/services/server-service";
+import { adminDeleteServer, retryProvisioning } from "@/server/services/server-service";
 import type { ActionResult } from "./servers";
 
 const idSchema = z.string().min(1);
@@ -135,6 +135,21 @@ export async function unsuspendServerAction(serverId: string): Promise<ActionRes
     const id = z.string().min(1).parse(serverId);
     await unsuspendServer(id);
     return { trail: { targetType: "Server", targetId: id } };
+  });
+}
+
+/**
+ * Tries again to build a server whose provisioning failed. The customer has
+ * already paid, so this is the difference between a recoverable incident and a
+ * refund.
+ */
+export async function retryProvisioningAction(serverId: string): Promise<ActionResult> {
+  return audited("server.retryProvisioning", async () => {
+    const id = z.string().min(1).parse(serverId);
+    const server = await retryProvisioning(id);
+    return {
+      trail: { targetType: "Server", targetId: id, meta: { status: server.status } },
+    };
   });
 }
 

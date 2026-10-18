@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { PasswordForm, ProfileForm } from "@/components/account/account-forms";
+import { PrivacySection } from "@/components/account/privacy-section";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/server/auth-guard";
@@ -49,6 +50,8 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/accou
             <p className="text-sm text-muted-foreground">{t("noPassword")}</p>
           )}
         </section>
+
+        <PrivacySection hasPassword={Boolean(user.passwordHash)} />
       </div>
     </>
   );

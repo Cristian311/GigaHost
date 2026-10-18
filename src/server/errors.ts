@@ -18,6 +18,8 @@ export type AppErrorCode =
   | "coupon_min_order"
   | "coupon_code_taken"
   | "order_not_found"
+  /** Another caller is already fulfilling this order; ask again shortly. */
+  | "order_in_progress"
   | "subscription_not_found"
   | "nothing_due"
   | "payment_failed"

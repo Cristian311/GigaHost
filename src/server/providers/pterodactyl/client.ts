@@ -169,6 +169,12 @@ export const pteroApp = {
   getServer: (id: number) =>
     pteroRequest<PteroObject<PteroServer>>("application", "GET", `/servers/${id}?include=allocations`),
   deleteServer: (id: number) => pteroRequest<void>("application", "DELETE", `/servers/${id}`),
+  /**
+   * Changes a server's resources. Replaces the whole build, so the caller must
+   * send the allocation and feature limits back along with the new limits.
+   */
+  updateBuild: (id: number, body: unknown) =>
+    pteroRequest<PteroObject<PteroServer>>("application", "PATCH", `/servers/${id}/build`, body),
   suspend: (id: number) => pteroRequest<void>("application", "POST", `/servers/${id}/suspend`),
   unsuspend: (id: number) => pteroRequest<void>("application", "POST", `/servers/${id}/unsuspend`),
   getEgg: (nestId: number, eggId: number) =>

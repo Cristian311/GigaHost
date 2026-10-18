@@ -20,12 +20,38 @@ const HOUR = 60 * MINUTE;
 /** One place to see, and tune, every limit the app enforces. */
 export const RATE_LIMITS = {
   login: { limit: 10, windowMs: 15 * MINUTE },
+  /**
+   * Per account, independent of where the attempts come from. This is the one
+   * that actually stops password guessing: the address can be spoofed or come
+   * from a botnet, the account being attacked cannot.
+   */
+  loginPerAccount: { limit: 20, windowMs: 15 * MINUTE },
   register: { limit: 5, windowMs: HOUR },
   passwordReset: { limit: 5, windowMs: HOUR },
   passwordResetPerEmail: { limit: 3, windowMs: HOUR },
   verificationEmail: { limit: 3, windowMs: HOUR },
   couponPreview: { limit: 30, windowMs: MINUTE },
   checkout: { limit: 10, windowMs: 10 * MINUTE },
+  // Keyed on the user id rather than the address: a signed-in caller cannot
+  // rotate that the way X-Forwarded-For can be rotated. Sized to sit well above
+  // anything a person does by hand and well below what a script does.
+  ticketCreate: { limit: 10, windowMs: HOUR },
+  ticketMessage: { limit: 40, windowMs: 10 * MINUTE },
+  consoleCommand: { limit: 60, windowMs: MINUTE },
+  passwordChange: { limit: 5, windowMs: HOUR },
+  /** Each resize charges or credits a card, so repeats are worth capping. */
+  resize: { limit: 10, windowMs: HOUR },
+  /** Power cycling: generous for a person, a brake on a script. */
+  serverPower: { limit: 30, windowMs: 10 * MINUTE },
+  /** File writes and directory work hit the provider's API for each call. */
+  serverFiles: { limit: 120, windowMs: 10 * MINUTE },
+  /** Backups are expensive in storage and provider time. */
+  backups: { limit: 20, windowMs: HOUR },
+  /**
+   * The public price quote. Unauthenticated, so this is keyed on the address
+   * and generous: the configurator recalculates on every slider move.
+   */
+  quote: { limit: 120, windowMs: MINUTE },
 } as const satisfies Record<string, RateLimitRule>;
 
 /**
@@ -95,11 +121,41 @@ export async function purgeExpiredRateLimits(now: Date = new Date()) {
 }
 
 /**
- * Best-effort client address. Behind a proxy the first entry of
- * X-Forwarded-For is the client; without one there is nothing better than a
- * shared bucket, which still caps the total.
+ * Number of reverse proxies in front of the app, from `TRUSTED_PROXY_HOPS`.
+ *
+ * `X-Forwarded-For` is appended to by each hop, so the entries a client sent
+ * itself end up on the *left* and the ones added by infrastructure you control
+ * on the right. Reading the leftmost entry therefore reads whatever the client
+ * typed, which lets an attacker rotate it and get a fresh rate-limit bucket for
+ * every password guess. Counting in from the right skips forged entries.
+ *
+ * 0 (the default) means the app is exposed directly and the header is ignored
+ * entirely — trusting it there would be the same hole.
+ */
+function trustedHops(): number {
+  const raw = Number(process.env.TRUSTED_PROXY_HOPS ?? "0");
+  return Number.isInteger(raw) && raw >= 0 ? raw : 0;
+}
+
+/**
+ * Client address, as far as it can be trusted.
+ *
+ * Never returns a client-controlled value: with no trusted proxy configured
+ * every caller shares one bucket, which throttles more than it should but can
+ * never be bypassed. Pair it with a limit keyed on something stable (the email
+ * being logged into, the signed-in user id) so a shared bucket is not the only
+ * thing standing in the way.
  */
 export function clientIp(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || headers.get("x-real-ip")?.trim() || "unknown";
+  const hops = trustedHops();
+  if (hops === 0) return headers.get("x-real-ip")?.trim() || "unknown";
+
+  const chain = (headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  // The entry added by the outermost proxy we trust: `hops` from the right.
+  const index = chain.length - hops;
+  return chain[index] || "unknown";
 }

@@ -84,6 +84,15 @@ const REGION_IP_PREFIX: Record<string, string> = {
 export class MockProvider implements ServerProvider {
   readonly name = "mock";
 
+  /** The simulation implements everything; that is the point of it. */
+  readonly capabilities = {
+    files: true,
+    players: true,
+    addons: true,
+    backups: true,
+    scheduledBackups: true,
+  };
+
   async createServer(input: ProvisionInput): Promise<ProvisionResult> {
     const rand = mulberry32(hashString(input.serverId));
     const prefix = REGION_IP_PREFIX[input.regionCode] ?? "10.0";
@@ -112,6 +121,11 @@ export class MockProvider implements ServerProvider {
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   async restart(): Promise<void> {}
+  /**
+   * Nothing to enforce in the simulation: the limits the customer sees come
+   * from the database row, which the service updates either way.
+   */
+  async resize(): Promise<void> {}
   async suspend(): Promise<void> {}
   async unsuspend(): Promise<void> {}
 

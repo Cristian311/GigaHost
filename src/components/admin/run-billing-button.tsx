@@ -39,7 +39,16 @@ export function RunBillingButton() {
       </div>
       {report ? (
         <p className="mt-4 rounded-lg bg-white/[0.04] px-3 py-2 font-mono text-xs">
-          {t("report", report)}
+          {report.skipped
+            ? t("reportSkipped")
+            : t("report", {
+                renewed: report.renewed,
+                failed: report.failed,
+                cancelled: report.cancelled,
+                suspended: report.suspended,
+                deleted: report.deleted,
+                errors: report.errors,
+              })}
         </p>
       ) : null}
     </div>

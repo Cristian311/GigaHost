@@ -38,7 +38,9 @@ npm run db:seed             # games, regions, pricing, admin user
 npm run dev                 # http://localhost:3000
 ```
 
-Admin login after seeding: `admin@gigahost.local` / `admin1234`.
+Admin login after seeding: `admin@gigahost.local` / `admin1234` — development
+only. In production the seed refuses to create it and wants `SEED_ADMIN_EMAIL`
+and `SEED_ADMIN_PASSWORD` instead (see [Deploying](#deploying)).
 
 The second database, `gigahost_test`, is only used by the integration tests,
 which drop and rebuild it on every run. Browse the real data in phpMyAdmin
@@ -166,6 +168,62 @@ where names are case sensitive. The script rewrites them to the casing of the
 Prisma models, and a unit test fails if one slips through.
 
 `docker-compose.yml` starts a MySQL 8.4 container for machines without XAMPP.
+
+## Deploying
+
+**GigaHost is not ready to take real money yet.** See
+[PRODUCTION-READINESS.md](PRODUCTION-READINESS.md) for what is still missing —
+most of it is legal and fiscal (terms, VAT, invoices), plus the Pterodactyl
+features that still return `provider_unavailable`. What follows is the
+mechanical part.
+
+A VPS running `next start` behind Caddy or nginx fits better than a serverless
+platform: the scheduler endpoints need a real cron, and each serverless instance
+would open its own connection pool.
+
+**1. Build.** `NEXT_PUBLIC_*` values are substituted into the bundle by
+`next build`, so `NEXT_PUBLIC_APP_URL` must be set *before* it — setting it at
+runtime changes nothing.
+
+```bash
+npm ci
+NEXT_PUBLIC_APP_URL="https://your-domain" npm run build
+```
+
+**2. Configure.** With `NODE_ENV=production` the server refuses to start when a
+setting would silently lose money or leak accounts — a placeholder `AUTH_SECRET`,
+an `APP_URL` still on localhost, a missing `SMTP_URL` or `CRON_SECRET`, or either
+provider left on `mock` (which hands out free servers). It lists every problem at
+once; see the *Production start-up checks* block in `.env.example`.
+
+**3. Migrate and seed.** Use `prisma migrate deploy`, never `migrate dev`:
+
+```bash
+npx prisma migrate deploy
+SEED_ADMIN_EMAIL="you@your-domain" SEED_ADMIN_PASSWORD="..." npm run db:seed
+```
+
+The seed loads the catalog and creates one admin. In production it refuses to
+run without those two variables, rather than creating the development login that
+is published in this README.
+
+**4. Schedule the two cron endpoints.** Nothing calls them on its own, and while
+they are not called there are no renewals, no suspensions and no scheduled
+tasks. They authenticate with `Authorization: Bearer $CRON_SECRET`.
+
+```cron
+0  * * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://your-domain/api/cron/billing
+*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://your-domain/api/cron/tasks
+```
+
+Neither takes a lock yet, so do not let two runs overlap.
+
+**5. Monitor.** `GET /api/health` returns 200 only when the instance can reach
+its database, and 503 otherwise. Point an uptime check at it. Errors in cron
+runs, webhooks and mail currently go to stdout only, so keep the process logs.
+
+**6. Back up the platform database.** A nightly `mysqldump` of the app database
+is separate from any game-server backups the panel takes.
 
 ## Roadmap
 

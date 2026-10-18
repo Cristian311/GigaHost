@@ -77,11 +77,15 @@ describe("rate limiting", () => {
     expect((await prisma.rateLimit.findMany()).map((r) => r.key)).toEqual(["fresh"]);
   });
 
-  it("reads the client address from proxy headers", () => {
-    expect(clientIp(new Headers({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" }))).toBe(
+  it("reads the client address from the trusted proxy hop", () => {
+    // TRUSTED_PROXY_HOPS is 1 here (see vitest.config.mts), so the rightmost
+    // entry is the one our own proxy added and everything left of it is
+    // whatever the client claimed. Counting from the right is what stops an
+    // attacker minting a fresh rate-limit bucket per request.
+    expect(clientIp(new Headers({ "x-forwarded-for": "203.0.113.7" }))).toBe("203.0.113.7");
+    expect(clientIp(new Headers({ "x-forwarded-for": "9.9.9.9, 203.0.113.7" }))).toBe(
       "203.0.113.7",
     );
-    expect(clientIp(new Headers({ "x-real-ip": "198.51.100.4" }))).toBe("198.51.100.4");
     expect(clientIp(new Headers())).toBe("unknown");
   });
 });

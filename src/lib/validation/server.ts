@@ -30,6 +30,13 @@ export const createServerSchema = serverConfigSchema.extend({
   name: z.string().trim().min(3).max(40),
   gameVersion: z.string().max(32).optional(),
   couponCode: couponCodeSchema.optional(),
+  /**
+   * The customer's express request that the server be built now, together with
+   * the acknowledgement that this ends the 14-day right of withdrawal once the
+   * service has been fully performed. Required, because the server is built
+   * immediately and there is no other lawful way to do that.
+   */
+  waiveWithdrawal: z.literal(true, { error: "withdrawal_waiver_required" }),
 });
 
 export const couponPreviewSchema = serverConfigSchema.extend({

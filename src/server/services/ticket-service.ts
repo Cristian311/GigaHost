@@ -7,6 +7,7 @@ import type {
   TicketMessageInput,
 } from "@/lib/validation/ticket";
 import { AppError } from "@/server/errors";
+import { notifyTicketReplied } from "./notification-service";
 
 /** The signed-in user reading or writing a ticket. */
 export type Viewer = { id: string; role: Role };
@@ -161,8 +162,8 @@ export async function addMessage(ticketId: string, author: Viewer, input: Ticket
   const isInternal = isStaff && input.isInternal;
   const createdAt = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const message = await tx.ticketMessage.create({
+  const message = await prisma.$transaction(async (tx) => {
+    const created = await tx.ticketMessage.create({
       data: { ticketId, authorId: author.id, body: input.body, isStaff, isInternal, createdAt },
       select: ticketMessageSelect,
     });
@@ -179,8 +180,15 @@ export async function addMessage(ticketId: string, author: Viewer, input: Ticket
         },
       });
     }
-    return message;
+    return created;
   });
+
+  // Only a staff reply is news: the customer already knows what they wrote, and
+  // an internal note was never theirs to see. Outside the transaction, because
+  // a mail problem must not undo the message.
+  if (isStaff && !isInternal) await notifyTicketReplied(ticketId);
+
+  return message;
 }
 
 // ---------------------------------------------------------------------------

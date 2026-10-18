@@ -12,4 +12,14 @@ export function getProvider(): ServerProvider {
   return cached;
 }
 
+/**
+ * Swaps the provider, so a test can make a call fail on purpose. Passing
+ * undefined restores the configured one. The alternative — standing up a real
+ * Pterodactyl — is not something a test suite can do, and the paths that matter
+ * here are the ones where the provider refuses.
+ */
+export function setProviderForTests(next: ServerProvider | undefined) {
+  cached = next;
+}
+
 export type * from "./types";

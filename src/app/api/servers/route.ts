@@ -8,8 +8,8 @@ import { assertEmailVerified } from "@/server/services/account-security-service"
 import { checkout } from "@/server/services/order-service";
 import { listServersForUser } from "@/server/services/server-service";
 
-export async function GET() {
-  return withApi(async () => {
+export async function GET(request: Request) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const servers = await listServersForUser(user.id);
     return NextResponse.json(servers);
@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const input = await parseJson(request, createServerSchema);
     await assertEmailVerified(user.id);

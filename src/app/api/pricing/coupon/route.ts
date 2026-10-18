@@ -8,7 +8,7 @@ import { quote } from "@/server/services/pricing-service";
 
 /** Prices a coupon against a configuration. Public, like the quote endpoint. */
 export async function POST(request: Request) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const { couponCode, ...config } = await parseJson(request, couponPreviewSchema);
     // Codes are guessable; this keeps the endpoint from being used to find them.
     await assertRateLimit(`coupon:${clientIp(request.headers)}`, RATE_LIMITS.couponPreview);

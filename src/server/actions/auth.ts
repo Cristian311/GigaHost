@@ -8,6 +8,7 @@ import { signIn, signOut } from "@/auth";
 import {
   forgotPasswordSchema,
   loginSchema,
+  CURRENT_TERMS_VERSION,
   registerSchema,
   resetPasswordSchema,
 } from "@/lib/validation/auth";
@@ -73,6 +74,9 @@ export async function registerAction(
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
+    // Absent entirely when the box is not ticked, which is what makes the
+    // schema reject it.
+    acceptTerms: formData.get("acceptTerms") ?? false,
   });
   if (!parsed.success) {
     return { error: "validation", fieldErrors: z.flattenError(parsed.error).fieldErrors };
@@ -85,6 +89,7 @@ export async function registerAction(
       email: parsed.data.email,
       password: parsed.data.password,
       locale,
+      termsVersion: CURRENT_TERMS_VERSION,
     });
   } catch (error) {
     if (error instanceof AppError) return { error: error.code };

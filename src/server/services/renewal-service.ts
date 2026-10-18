@@ -7,10 +7,12 @@ import { AppError } from "@/server/errors";
 import { getPaymentProvider, type ChargeFn } from "@/server/payments";
 import { getProvider } from "@/server/providers";
 import { recordEvent } from "./event-service";
+import { withJobLock } from "./job-lock";
 import { nextInvoiceNumber, voidPendingRenewals } from "./invoice-service";
 import {
   notifyPaymentFailed,
   notifyRenewalPaid,
+  notifyRenewalUpcoming,
   notifyServerDeleted,
   notifyServerSuspended,
 } from "./notification-service";
@@ -30,8 +32,12 @@ export type BillingCycleReport = {
   cancelled: number;
   suspended: number;
   deleted: number;
+  /** Customers warned that their card is about to be charged. */
+  noticesSent: number;
   /** Subscriptions skipped because something unexpected went wrong (see logs). */
   errors: number;
+  /** True when another run already held the lock, so this one did nothing. */
+  skipped?: boolean;
 };
 
 type Deps = { charge?: ChargeFn };
@@ -140,6 +146,23 @@ async function attemptRenewal(
     sub.server.status === "SUSPENDED" && sub.server.suspensionReason === "BILLING";
   const orderId = order.id;
 
+  // The card has already been charged, so a panel outage must not roll the
+  // renewal back. Unlike the suspend path this one swallows the error and
+  // records it: the customer's payment is written either way, and an admin (or
+  // a manual unsuspend) fixes a server the panel refused to bring back.
+  let unsuspendError: string | null = null;
+  if (liftSuspension) {
+    const ref = toRef(sub.server);
+    if (ref) {
+      try {
+        await getProvider().unsuspend(ref);
+      } catch (error) {
+        unsuspendError = error instanceof Error ? error.message : String(error);
+        console.error(`[billing] unsuspend failed for server ${sub.serverId}`, error);
+      }
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
@@ -171,14 +194,26 @@ async function attemptRenewal(
     if (liftSuspension) {
       await tx.server.update({
         where: { id: sub.serverId },
-        data: { status: "STOPPED", statusChangedAt: now, suspensionReason: null },
+        data: {
+          // Still suspended on the panel: say so rather than showing it stopped.
+          status: unsuspendError ? "ERROR" : "STOPPED",
+          statusChangedAt: now,
+          suspensionReason: null,
+          ...(unsuspendError ? { lastError: unsuspendError } : {}),
+        },
       });
     }
   });
 
   await recordEvent(sub.serverId, "RENEWED", undefined, { totalCents, creditUsed });
   await notifyRenewalPaid(orderId);
-  if (liftSuspension) await recordEvent(sub.serverId, "UNSUSPENDED", "Payment received");
+  if (liftSuspension) {
+    await recordEvent(
+      sub.serverId,
+      "UNSUSPENDED",
+      unsuspendError ? `Payment received, but the panel refused: ${unsuspendError}` : "Payment received",
+    );
+  }
   return { paid: true };
 }
 
@@ -187,6 +222,14 @@ async function suspendForBilling(
   now: Date,
   reason: "Unpaid" | "Subscription ended",
 ) {
+  const server = await prisma.server.findUnique({ where: { id: serverId } });
+  const ref = server ? toRef(server) : null;
+  // Suspending in the database alone leaves the server running on the panel,
+  // and the next status sync then overwrites SUSPENDED with the live RUNNING —
+  // so every cycle would re-suspend it and re-send the notice. A provider
+  // failure aborts here on purpose: the next run retries.
+  if (ref) await getProvider().suspend(ref);
+
   await prisma.server.update({
     where: { id: serverId },
     data: { status: "SUSPENDED", statusChangedAt: now, suspensionReason: "BILLING" },
@@ -223,11 +266,31 @@ async function deleteForBilling(sub: DueSubscription, now: Date, reason: string)
  * One pass of the billing engine. Meant to run from a scheduler (hourly is
  * plenty); every step looks at timestamps rather than at when it last ran, so
  * running it more often, or after an outage, is harmless.
+ *
+ * Only one run at a time, though: the steps below read subscriptions and then
+ * act on them without claiming each row, so two overlapping runs would each
+ * create a renewal order for the same period and charge the card twice.
  */
 export async function runBillingCycle(
   now: Date = new Date(),
   deps: Deps = {},
 ): Promise<BillingCycleReport> {
+  const report = await withJobLock("billing-cycle", () => billingCyclePass(now, deps), { now });
+  return (
+    report ?? {
+      renewed: 0,
+      failed: 0,
+      cancelled: 0,
+      suspended: 0,
+      deleted: 0,
+      noticesSent: 0,
+      errors: 0,
+      skipped: true,
+    }
+  );
+}
+
+async function billingCyclePass(now: Date, deps: Deps): Promise<BillingCycleReport> {
   const charge = deps.charge ?? ((request) => getPaymentProvider().chargeSaved(request));
   const report: BillingCycleReport = {
     renewed: 0,
@@ -235,6 +298,7 @@ export async function runBillingCycle(
     cancelled: 0,
     suspended: 0,
     deleted: 0,
+    noticesSent: 0,
     errors: 0,
   };
   // A gateway outage while billing one customer must not stop the run for the
@@ -339,6 +403,35 @@ export async function runBillingCycle(
     await guarded(sub.id, async () => {
       await deleteForBilling(sub, now, "Subscription ended");
       report.deleted += 1;
+    });
+  }
+
+  // 4. Warn whoever is about to be charged. Last, because the steps above may
+  // have moved a period forward, and the warning should be about the new one.
+  const noticeCutoff = new Date(now.getTime() + BILLING_POLICY.renewalNoticeDays * DAY_MS);
+  const upcoming = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: { gt: now, lte: noticeCutoff },
+      server: liveServer,
+    },
+    select: { id: true, currentPeriodEnd: true, renewalNoticeFor: true },
+  });
+
+  for (const sub of upcoming) {
+    // Comparing two columns is not expressible in the query above, so the
+    // "already warned about this period" check happens here.
+    if (sub.renewalNoticeFor?.getTime() === sub.currentPeriodEnd.getTime()) continue;
+    await guarded(sub.id, async () => {
+      await notifyRenewalUpcoming(sub.id);
+      // Written after sending: a failure here means one extra email next run,
+      // which is better than a silently skipped warning.
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { renewalNoticeFor: sub.currentPeriodEnd },
+      });
+      report.noticesSent += 1;
     });
   }
 

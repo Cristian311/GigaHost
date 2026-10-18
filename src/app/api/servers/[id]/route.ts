@@ -5,8 +5,8 @@ import { deleteServer, getServerForUser } from "@/server/services/server-service
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function GET(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const server = await getServerForUser(id, user.id);
@@ -14,8 +14,8 @@ export async function GET(_request: Request, { params }: Context) {
   });
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function DELETE(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     await deleteServer(id, user.id);

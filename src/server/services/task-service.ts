@@ -8,6 +8,7 @@ import { getProvider } from "@/server/providers";
 import { createBackup, deleteBackup, listBackups } from "./backup-service";
 import { cleanCommand } from "./console-service";
 import { recordEvent } from "./event-service";
+import { withJobLock } from "./job-lock";
 import { getServerForUser, powerServer, syncStatus, serverInclude, toRef } from "./server-service";
 
 /** Automatic backups are named like this, which is also how rotation finds them. */
@@ -136,14 +137,28 @@ async function execute(task: DueTask, now: Date): Promise<string> {
   }
 }
 
-export type TaskRunReport = { ran: number; skipped: number; failed: number };
+export type TaskRunReport = {
+  ran: number;
+  skipped: number;
+  failed: number;
+  /** True when another run already held the lock, so this one did nothing. */
+  lockedOut?: boolean;
+};
 
 /**
  * Runs every task whose time has come. Meant for the scheduler endpoint; like
  * the billing cycle it works from timestamps, and a task that was missed while
  * the scheduler was down runs once, not once per missed slot.
+ *
+ * One run at a time: due tasks are read and then executed without claiming each
+ * row, so two overlapping runs would restart a server or take a backup twice.
  */
 export async function runDueTasks(now: Date = new Date()): Promise<TaskRunReport> {
+  const report = await withJobLock("due-tasks", () => dueTasksPass(now), { now });
+  return report ?? { ran: 0, skipped: 0, failed: 0, lockedOut: true };
+}
+
+async function dueTasksPass(now: Date): Promise<TaskRunReport> {
   const report: TaskRunReport = { ran: 0, skipped: 0, failed: 0 };
   const due = await prisma.scheduledTask.findMany({
     where: { enabled: true, nextRunAt: { lte: now }, server: { status: { not: "DELETED" } } },

@@ -28,14 +28,18 @@ export type PterodactylTarget = {
   variables: Record<string, string>;
 };
 
-export type ProvisionInput = {
+/** The three dials a customer can move, in the units the site uses. */
+export type ResourceSpec = {
+  ramGb: number;
+  vcpu: number;
+  storageGb: number;
+};
+
+export type ProvisionInput = ResourceSpec & {
   serverId: string;
   name: string;
   gameSlug: string;
   gameVersion?: string | null;
-  ramGb: number;
-  vcpu: number;
-  storageGb: number;
   regionCode: string;
   /** Null when the game or region has no Pterodactyl configuration. */
   pterodactyl: PterodactylTarget | null;
@@ -123,13 +127,38 @@ export type ConsoleAccess = {
   token: string;
 };
 
+/**
+ * What a provider can actually do. Not every backend implements every panel
+ * feature, and a tab that always errors is worse than one that is not there —
+ * especially when the marketing pages promise the feature.
+ *
+ * Declared rather than discovered so the UI can decide before it renders,
+ * without calling the provider and catching `provider_unavailable`.
+ */
+export type ProviderCapabilities = {
+  files: boolean;
+  players: boolean;
+  addons: boolean;
+  backups: boolean;
+  /** Scheduled tasks are only as capable as the actions they invoke. */
+  scheduledBackups: boolean;
+};
+
 export interface ServerProvider {
   readonly name: string;
+  readonly capabilities: ProviderCapabilities;
   createServer(input: ProvisionInput): Promise<ProvisionResult>;
   deleteServer(ref: ServerRef): Promise<void>;
   start(ref: ServerRef): Promise<void>;
   stop(ref: ServerRef): Promise<void>;
   restart(ref: ServerRef): Promise<void>;
+  /**
+   * Applies new resource limits to an existing server.
+   *
+   * Called before the resize is marked paid: charging for memory the server
+   * never gets is the one failure worth an exception rather than a log line.
+   */
+  resize(ref: ServerRef, spec: ResourceSpec): Promise<void>;
   /** Admin action: stops the server and blocks the owner from starting it. */
   suspend(ref: ServerRef): Promise<void>;
   unsuspend(ref: ServerRef): Promise<void>;

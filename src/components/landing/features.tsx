@@ -9,6 +9,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { FadeIn } from "@/components/motion/fade-in";
 import { SectionHeading } from "@/components/section-heading";
+import { getProvider } from "@/server/providers";
 
 const ICONS = {
   nvme: HardDrive,
@@ -21,7 +22,12 @@ const ICONS = {
 
 export async function Features() {
   const t = await getTranslations("landing.features");
-  const keys = Object.keys(ICONS) as Array<keyof typeof ICONS>;
+  // Selling a feature the configured provider cannot deliver is a promise the
+  // product breaks on day one, so the card goes away with the capability.
+  const can = getProvider().capabilities;
+  const keys = (Object.keys(ICONS) as Array<keyof typeof ICONS>).filter(
+    (key) => key !== "backups" || can.backups,
+  );
 
   return (
     <section id="features" className="scroll-mt-20 py-24">

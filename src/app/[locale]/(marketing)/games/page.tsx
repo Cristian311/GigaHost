@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { GameCard } from "@/components/games/game-card";
 import { SectionHeading } from "@/components/section-heading";
+import { alternates } from "@/lib/seo";
 import { getActivePricing, getGames, toPricingTable } from "@/server/services/pricing-service";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps<"/[locale]/games">): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations("games");
-  return { title: t("title") };
+  return { title: t("title"), alternates: alternates(locale, "/games") };
 }
 
 export default async function GamesPage({ params }: PageProps<"/[locale]/games">) {

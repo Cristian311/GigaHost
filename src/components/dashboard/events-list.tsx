@@ -8,6 +8,7 @@ import {
   CirclePlay,
   CircleStop,
   CreditCard,
+  Gavel,
   PauseCircle,
   PlayCircle,
   PuzzleIcon,
@@ -17,6 +18,7 @@ import {
   ServerCrash,
   SlidersHorizontal,
   Sparkles,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -37,6 +39,8 @@ const ICONS: Record<ServerEventType, LucideIcon> = {
   UNSUSPENDED: CirclePlay,
   RENEWED: ReceiptText,
   PAYMENT_FAILED: CreditCard,
+  REFUNDED: Undo2,
+  DISPUTED: Gavel,
   ADDON_INSTALLED: PuzzleIcon,
   ADDON_REMOVED: PuzzleIcon,
   TASK_RAN: CalendarClock,

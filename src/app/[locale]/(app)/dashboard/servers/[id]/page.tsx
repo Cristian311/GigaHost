@@ -21,6 +21,7 @@ import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/pricing/calculate-price";
 import { requireUser } from "@/server/auth-guard";
 import { AppError } from "@/server/errors";
+import { getProvider } from "@/server/providers";
 import { getServerEvents, getServerForUser } from "@/server/services/server-service";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,6 +52,7 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
     getServerEvents(id, user.id),
   ]);
 
+  const can = getProvider().capabilities;
   const address = server.ip ? `${server.ip}:${server.port}` : null;
   const sub = server.subscription;
   const resizable = server.status === "STOPPED" || server.status === "RUNNING";
@@ -201,14 +203,20 @@ export default async function ServerPage({ params }: PageProps<"/[locale]/dashbo
         </div>
       ) : null}
 
+      {/* Only what this provider can actually do: a tab that always returns
+          provider_unavailable is worse than one that is not offered. */}
       <ServerTabs
         panels={{
           overview,
-          files: <FilesPanel serverId={server.id} available={panelAvailable} />,
-          players: <PlayersPanel serverId={server.id} running={server.status === "RUNNING"} />,
-          addons: <AddonsPanel serverId={server.id} available={panelAvailable} />,
-          tasks: <TasksPanel serverId={server.id} />,
-          backups: <BackupsPanel serverId={server.id} />,
+          files: can.files ? <FilesPanel serverId={server.id} available={panelAvailable} /> : null,
+          players: can.players ? (
+            <PlayersPanel serverId={server.id} running={server.status === "RUNNING"} />
+          ) : null,
+          addons: can.addons ? (
+            <AddonsPanel serverId={server.id} available={panelAvailable} />
+          ) : null,
+          tasks: <TasksPanel serverId={server.id} canBackup={can.scheduledBackups} />,
+          backups: can.backups ? <BackupsPanel serverId={server.id} /> : null,
           activity: <EventsList events={events} />,
         }}
       />

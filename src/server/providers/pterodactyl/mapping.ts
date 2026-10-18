@@ -92,6 +92,52 @@ export function buildEnvironment(
   return env;
 }
 
+/** Resources a server is allowed, in the units the panel expects. */
+export type PteroLimits = {
+  memory: number;
+  swap: number;
+  disk: number;
+  io: number;
+  cpu: number;
+};
+
+/** What the panel counts separately from CPU and memory. */
+export const FEATURE_LIMITS = { databases: 0, allocations: 1, backups: 3 } as const;
+
+/**
+ * Shared by creation and by resizing, so the two can never disagree about what
+ * "8 GB and 4 vCPU" means — a resize that computed them differently would
+ * silently change a customer's server on its next resize.
+ */
+export function buildLimits(spec: { ramGb: number; vcpu: number; storageGb: number }): PteroLimits {
+  return {
+    memory: spec.ramGb * 1024,
+    swap: 0,
+    disk: spec.storageGb * 1024,
+    io: 500,
+    // Pterodactyl expresses CPU as a percentage of one core.
+    cpu: spec.vcpu * 100,
+  };
+}
+
+/**
+ * Body for PATCH /api/application/servers/{id}/build.
+ *
+ * The endpoint replaces the build wholesale rather than merging, so the
+ * allocation has to be sent back or the panel unassigns the server's port and
+ * players can no longer connect.
+ */
+export function buildResizeBody(
+  spec: { ramGb: number; vcpu: number; storageGb: number },
+  current: { allocation: number },
+) {
+  return {
+    allocation: current.allocation,
+    ...buildLimits(spec),
+    feature_limits: FEATURE_LIMITS,
+  };
+}
+
 /** Body for POST /api/application/servers. */
 export function buildCreateServerBody(
   input: Pick<ProvisionInput, "serverId" | "name" | "ramGb" | "vcpu" | "storageGb" | "gameVersion">,
@@ -108,15 +154,8 @@ export function buildCreateServerBody(
     docker_image: pickDockerImage(egg, target.dockerImage, input.gameVersion),
     startup: egg.startup,
     environment: buildEnvironment(variables, target.variables, target.versionVariable, input.gameVersion),
-    limits: {
-      memory: input.ramGb * 1024,
-      swap: 0,
-      disk: input.storageGb * 1024,
-      io: 500,
-      // Pterodactyl expresses CPU as a percentage of one core.
-      cpu: input.vcpu * 100,
-    },
-    feature_limits: { databases: 0, allocations: 1, backups: 3 },
+    limits: buildLimits(input),
+    feature_limits: FEATURE_LIMITS,
     // Let the panel pick a node with room and a free port in the region's location.
     deploy: { locations: [target.locationId], dedicated_ip: false, port_range: [] as string[] },
     // Matches the mock: installs end STOPPED and the owner presses Start.

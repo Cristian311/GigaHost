@@ -97,6 +97,7 @@ describe("API route handlers", () => {
         storageGb: 50,
         regionCode: "eu-de",
         billingPeriod: "YEARLY",
+        waiveWithdrawal: true,
       }),
     );
     expect(ok.status).toBe(200);
@@ -117,7 +118,7 @@ describe("API route handlers", () => {
   });
 
   it("serves the public games list", async () => {
-    const res = await gamesRoute();
+    const res = await gamesRoute(new Request("http://localhost/api/games"));
     expect(res.status).toBe(200);
     const games = (await res.json()) as Array<{
       slug: string;
@@ -129,7 +130,7 @@ describe("API route handlers", () => {
   });
 
   it("requires a session for server endpoints", async () => {
-    const res = await listServersRoute();
+    const res = await listServersRoute(new Request("http://localhost/api/servers"));
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ error: "unauthorized" });
   });
@@ -147,12 +148,13 @@ describe("API route handlers", () => {
         storageGb: 50,
         regionCode: "eu-ro",
         billingPeriod: "MONTHLY",
+        waiveWithdrawal: true,
       }),
     );
     expect(created.status).toBe(201);
     const { serverId } = (await created.json()) as { serverId: string };
 
-    const list = await listServersRoute();
+    const list = await listServersRoute(new Request("http://localhost/api/servers"));
     expect((await list.json()) as unknown[]).toHaveLength(1);
 
     const detail = await getServerRoute(new Request("http://localhost"), ctx(serverId));
@@ -254,6 +256,7 @@ describe("API route handlers", () => {
       storageGb: 50,
       regionCode: "eu-ro",
       billingPeriod: "MONTHLY",
+      waiveWithdrawal: true,
     };
 
     it("prices a code for an anonymous visitor", async () => {
@@ -389,6 +392,7 @@ describe("API route handlers", () => {
         storageGb: 20,
         regionCode: "eu-ro",
         billingPeriod: "MONTHLY",
+        waiveWithdrawal: true,
       });
       const payload = completedEvent(order.id);
 
@@ -413,6 +417,7 @@ describe("API route handlers", () => {
         storageGb: 20,
         regionCode: "eu-ro",
         billingPeriod: "MONTHLY",
+        waiveWithdrawal: true,
       });
       const payload = completedEvent(order.id);
 
@@ -447,6 +452,7 @@ describe("API route handlers", () => {
       storageGb: 20,
       regionCode: "eu-ro",
       billingPeriod: "MONTHLY",
+      waiveWithdrawal: true,
     };
 
     it("refuses an order from an account with an unconfirmed email", async () => {

@@ -30,11 +30,20 @@ const providers: NextAuthConfig["providers"] = [
       const parsed = loginSchema.safeParse(credentials);
       if (!parsed.success) return null;
 
-      // Counted per address *and* account, so one attacker cannot lock a
-      // customer out from everywhere, and one address cannot try every account.
-      const key = `login:${clientIp(request.headers)}:${parsed.data.email}`;
-      const attempt = await consumeRateLimit(key, RATE_LIMITS.login);
-      if (!attempt.allowed) return null;
+      // Two counters, because either one alone can be worked around. The
+      // per-address one keeps a single source from sweeping every account; the
+      // per-account one is what survives a botnet or a spoofed forwarding
+      // header, and is the only limit at all when no trusted proxy is
+      // configured and every caller shares the "unknown" bucket.
+      const email = parsed.data.email;
+      const key = `login:${clientIp(request.headers)}:${email}`;
+      const accountKey = `login-account:${email}`;
+
+      const [attempt, perAccount] = await Promise.all([
+        consumeRateLimit(key, RATE_LIMITS.login),
+        consumeRateLimit(accountKey, RATE_LIMITS.loginPerAccount),
+      ]);
+      if (!attempt.allowed || !perAccount.allowed) return null;
 
       const user = await prisma.user.findUnique({
         where: { email: parsed.data.email },
@@ -44,7 +53,8 @@ const providers: NextAuthConfig["providers"] = [
       const valid = await compare(parsed.data.password, user.passwordHash);
       if (!valid) return null;
 
-      await clearRateLimit(key);
+      // The password was right, so neither counter is evidence of an attack.
+      await Promise.all([clearRateLimit(key), clearRateLimit(accountKey)]);
 
       return {
         id: user.id,

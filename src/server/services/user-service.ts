@@ -8,6 +8,8 @@ export async function registerUser(params: {
   email: string;
   password: string;
   locale?: string;
+  /** Version of the terms the customer ticked; recorded with the moment. */
+  termsVersion?: string;
 }) {
   const existing = await prisma.user.findUnique({ where: { email: params.email } });
   if (existing) throw new AppError("email_taken", 409);
@@ -19,6 +21,9 @@ export async function registerUser(params: {
       email: params.email,
       passwordHash,
       locale: params.locale ?? "en",
+      ...(params.termsVersion
+        ? { termsAcceptedAt: new Date(), termsVersion: params.termsVersion }
+        : {}),
     },
   });
 
@@ -38,6 +43,20 @@ export async function updateProfile(
   data: { name: string; locale: string },
 ) {
   return prisma.user.update({ where: { id: userId }, data });
+}
+
+/**
+ * Confirms the account's own password before something irreversible. Accounts
+ * that only ever signed in with Google or Discord have no password to check,
+ * and are told so rather than being let through.
+ */
+export async function assertPassword(userId: string, password: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) throw new AppError("invalid_credentials", 400);
+  if (!(await compare(password, user.passwordHash))) {
+    throw new AppError("invalid_credentials", 400);
+  }
+  return user;
 }
 
 export async function changePassword(

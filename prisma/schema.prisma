@@ -47,6 +47,11 @@ enum OrderStatus {
   PAID
   FAILED
   CANCELLED
+  /// Money given back, in full or in part. Kept distinct from CANCELLED,
+  /// which means it was never paid.
+  REFUNDED
+  /// The cardholder disputed the charge with their bank.
+  DISPUTED
 }
 
 enum InvoiceStatus {
@@ -54,6 +59,7 @@ enum InvoiceStatus {
   OPEN
   PAID
   VOID
+  REFUNDED
 }
 
 enum SubscriptionStatus {
@@ -104,6 +110,8 @@ enum ServerEventType {
   UNSUSPENDED
   RENEWED
   PAYMENT_FAILED
+  REFUNDED
+  DISPUTED
   ADDON_INSTALLED
   ADDON_REMOVED
   TASK_RAN
@@ -154,6 +162,11 @@ model User {
   sessionVersion Int       @default(0)
   /// Last support heartbeat (admins only); drives the live chat "online" dot.
   lastSeenAt    DateTime?
+  /// When the terms were accepted, and which version. Null for accounts that
+  /// pre-date the checkbox; recording only a boolean would not say what was
+  /// agreed to.
+  termsAcceptedAt DateTime?
+  termsVersion    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -243,12 +256,15 @@ model EmailMessage {
   html      String      @db.Text
   status    EmailStatus
   error     String?     @db.Text
+  /// Delivery attempts made so far; the retry job gives up after a few.
+  attempts  Int         @default(0)
   createdAt DateTime    @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([to])
+  @@index([status])
 }
 
 /// Fixed-window counters, e.g. "login:203.0.113.7".
@@ -256,6 +272,50 @@ model RateLimit {
   key       String   @id
   count     Int
   expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+/// Hands out invoice numbers. Reading the highest existing number and then
+/// inserting is not atomic, and the collision lands after the card has already
+/// been charged; incrementing a row under a lock cannot collide at all.
+model InvoiceCounter {
+  /// Numbers restart each year, e.g. "GH-2026".
+  prefix String @id
+  /// Last number handed out.
+  next   Int    @default(0)
+}
+
+/// History of the scheduled jobs.
+///
+/// Failures used to reach `console.error` and nowhere else, so in production
+/// nobody would know that a renewal had not been billed, or that the scheduler
+/// had stopped calling at all. This is what makes both visible.
+model CronRun {
+  id         String    @id @default(cuid())
+  /// "billing-cycle" or "due-tasks".
+  job        String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// Null while running; false when it threw.
+  ok         Boolean?
+  /// JSON report the job returned, or the error message when it failed.
+  detail     String?   @db.Text
+  durationMs Int?
+
+  @@index([job, startedAt])
+  @@index([startedAt])
+}
+
+/// Keeps two schedulers (or two instances) from running the same job at once.
+/// A lease rather than a database lock, so it survives a connection pool and a
+/// crashed run: the row expires instead of blocking the job forever.
+model JobLock {
+  name       String   @id
+  /// Random per acquisition, so only the run that took the lock can release it.
+  holder     String
+  acquiredAt DateTime @default(now())
+  expiresAt  DateTime
 
   @@index([expiresAt])
 }
@@ -312,7 +372,9 @@ model Game {
   /// Egg variable that receives the chosen version (e.g. MINECRAFT_VERSION).
   versionVariable   String?
   /// JSON object of fixed egg variables, e.g. {"SERVER_JARFILE":"server.jar"}.
-  eggVariables      String  @default("{}")
+  /// No database default on purpose: MySQL 8 rejects a literal DEFAULT on TEXT,
+  /// and every write site already supplies a value (zod defaults it to "{}").
+  eggVariables      String  @db.Text
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -380,7 +442,7 @@ model Server {
   /// Pterodactyl numeric id (Application API).
   providerInternalId Int?
   /// Last provisioning error, shown to admins.
-  lastError       String?
+  lastError       String?      @db.Text
   ip              String?
   port            Int?
   createdAt       DateTime     @default(now())
@@ -442,7 +504,7 @@ model ScheduledTask {
   name          String
   action        TaskAction
   /// Console command for COMMAND tasks.
-  payload       String?
+  payload       String?       @db.Text
   frequency     TaskFrequency
   /// HOURLY: run every N hours.
   everyHours    Int           @default(1)
@@ -591,7 +653,7 @@ model TicketMessage {
   id         String   @id @default(cuid())
   ticketId   String
   authorId   String
-  body       String
+  body       String   @db.Text
   /// Written by an admin acting as staff (fixed at write time).
   isStaff    Boolean  @default(false)
   /// Staff-only note, never shown to the customer.
@@ -609,7 +671,13 @@ model TicketMessage {
 // Billing
 // ---------------------------------------------------------------------------
 
+/// A server is built within moments of payment, so the 14-day right of
+/// withdrawal only ends if the customer expressly asked for the service to
+/// start immediately and acknowledged the consequence (OUG 34/2014, art. 16).
+/// Recorded per order, because that is the transaction it applies to.
 model Order {
+  /// When the customer ticked the immediate-start request, if they did.
+  withdrawalWaivedAt DateTime?
   id             String        @id @default(cuid())
   userId         String
   serverId       String?
@@ -698,6 +766,10 @@ model Subscription {
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean            @default(false)
+  /// Period end the "your card will be charged" warning was last sent for.
+  /// Compared against currentPeriodEnd so an hourly scheduler sends it once,
+  /// not once per hour of the warning window.
+  renewalNoticeFor   DateTime?
   /// When the first renewal charge failed; drives suspension and deletion.
   pastDueSince       DateTime?
   lastChargeAttemptAt DateTime?

@@ -5,8 +5,8 @@ import { getServerForUser, getServerUsage } from "@/server/services/server-servi
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function GET(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const [server, usage] = await Promise.all([

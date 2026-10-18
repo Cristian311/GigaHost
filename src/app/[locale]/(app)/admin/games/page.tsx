@@ -2,10 +2,12 @@ import { setRequestLocale } from "next-intl/server";
 import { GamesManager } from "@/components/admin/games-manager";
 import { parseVersions } from "@/lib/games";
 import { getGames } from "@/server/services/pricing-service";
+import { requireAdmin } from "@/server/auth-guard";
 
 export default async function AdminGamesPage({ params }: PageProps<"/[locale]/admin/games">) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireAdmin();
   const games = await getGames();
   return (
     <GamesManager

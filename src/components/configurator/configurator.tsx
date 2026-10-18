@@ -35,6 +35,8 @@ type Props = {
   pricing: PricingTable;
   initialSearch: string;
   isAuthenticated: boolean;
+  /** False while payments are simulated, which the customer must be told. */
+  paymentsAreReal: boolean;
 };
 
 function Step({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
@@ -51,11 +53,20 @@ function Step({ number, title, children }: { number: number; title: string; chil
   );
 }
 
-export function Configurator({ games, regions, pricing, initialSearch, isAuthenticated }: Props) {
+export function Configurator({
+  games,
+  regions,
+  pricing,
+  initialSearch,
+  isAuthenticated,
+  paymentsAreReal,
+}: Props) {
   const t = useTranslations("configure");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [nameError, setNameError] = useState<string | null>(null);
+  const [waiveWithdrawal, setWaiveWithdrawal] = useState(false);
+  const [waiverError, setWaiverError] = useState<string | null>(null);
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
 
   const { state, update, selectGame, game, breakdown, limits, availableGames, searchString } =
@@ -70,6 +81,15 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
     }
     setNameError(null);
 
+    // The server is built the moment payment clears, so the customer has to
+    // ask for that expressly and acknowledge what it does to the 14-day right
+    // of withdrawal. The server re-checks; this is only the earlier message.
+    if (!waiveWithdrawal) {
+      setWaiverError(t("errors.withdrawal_waiver_required"));
+      return;
+    }
+    setWaiverError(null);
+
     startTransition(async () => {
       const result = await createServerAction({
         name: state.name.trim(),
@@ -81,6 +101,7 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
         regionCode: state.regionCode,
         billingPeriod: state.billingPeriod,
         couponCode: coupon?.code,
+        waiveWithdrawal: true,
       });
 
       if (!result.ok) {
@@ -221,8 +242,38 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
           />
 
           {isAuthenticated ? (
+            <>
+              {/* Shown before the pay button, and ticked by the customer: the
+                  law wants an express request, not an assumption. */}
+              <div className="mt-4 flex gap-2.5">
+                <input
+                  id="waiveWithdrawal"
+                  type="checkbox"
+                  checked={waiveWithdrawal}
+                  onChange={(event) => {
+                    setWaiveWithdrawal(event.target.checked);
+                    if (event.target.checked) setWaiverError(null);
+                  }}
+                  className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+                />
+                <label
+                  htmlFor="waiveWithdrawal"
+                  className="cursor-pointer text-[11px] leading-snug text-muted-foreground"
+                >
+                  {t.rich("waiveWithdrawal", {
+                    link: (chunks) => (
+                      <Link href="/legal/withdrawal" className="text-primary hover:underline">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
+                </label>
+              </div>
+              {waiverError ? (
+                <p className="mt-1.5 text-[11px] text-destructive">{waiverError}</p>
+              ) : null}
             <Button
-              className="glow-primary mt-4 h-11 w-full text-base"
+              className="glow-primary mt-3 h-11 w-full text-base"
               size="lg"
               onClick={deploy}
               disabled={pending}
@@ -230,6 +281,7 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
               {pending ? <Loader2 className="animate-spin" /> : <Rocket data-icon="inline-start" />}
               {pending ? t("deploying") : t("deploy")}
             </Button>
+            </>
           ) : (
             <Button
               className="mt-4 h-11 w-full text-base"
@@ -241,7 +293,9 @@ export function Configurator({ games, regions, pricing, initialSearch, isAuthent
             </Button>
           )}
 
-          <p className="mt-3 text-center text-[11px] text-muted-foreground">{t("previewNotice")}</p>
+          {paymentsAreReal ? null : (
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">{t("previewNotice")}</p>
+          )}
         </PriceSummary>
       </aside>
     </div>

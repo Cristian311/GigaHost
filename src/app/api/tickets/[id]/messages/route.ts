@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { messagesQuerySchema, ticketMessageSchema } from "@/lib/validation/ticket";
 import { parseJson, withApi } from "@/server/api";
 import { getApiUser } from "@/server/auth-guard";
+import { RATE_LIMITS, assertRateLimit } from "@/server/security/rate-limit";
 import { addMessage, isStaffOnline, listMessages } from "@/server/services/ticket-service";
 
 type Context = { params: Promise<{ id: string }> };
 
 /** Polled by the thread: messages at or after `after`, plus ticket status and staff presence. */
 export async function GET(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const { after } = messagesQuerySchema.parse({
@@ -23,9 +24,10 @@ export async function GET(request: Request, { params }: Context) {
 }
 
 export async function POST(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
+    await assertRateLimit(`ticketMessage:${user.id}`, RATE_LIMITS.ticketMessage);
     const input = await parseJson(request, ticketMessageSchema);
     const message = await addMessage(id, user, input);
     return NextResponse.json({ message }, { status: 201 });

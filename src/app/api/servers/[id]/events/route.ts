@@ -6,7 +6,7 @@ import { getServerEvents } from "@/server/services/server-service";
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const limit = Math.min(

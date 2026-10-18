@@ -3,6 +3,7 @@ import { AppError } from "@/server/errors";
 import { pteroApp, pteroClient } from "./pterodactyl/client";
 import {
   buildCreateServerBody,
+  buildResizeBody,
   mapApplicationStatus,
   mapClientState,
   pickAddress,
@@ -19,6 +20,7 @@ import type {
   ProvisionResult,
   ResourceUsage,
   ServerProvider,
+  ResourceSpec,
   ServerRef,
 } from "./types";
 
@@ -43,6 +45,19 @@ function isNotFound(error: unknown) {
  */
 export class PterodactylProvider implements ServerProvider {
   readonly name = "pterodactyl";
+
+  /**
+   * Everything false below is a `notImplemented` further down this file. Flip
+   * each one as its Client API calls land; the dashboard and the landing page
+   * read these, so a feature appears to customers only once it works.
+   */
+  readonly capabilities = {
+    files: false,
+    players: false,
+    addons: false,
+    backups: false,
+    scheduledBackups: false,
+  };
 
   /**
    * Usage history for the dashboard sparkline, kept per process. It resets on
@@ -122,6 +137,31 @@ export class PterodactylProvider implements ServerProvider {
 
   async restart(ref: ServerRef) {
     await pteroClient.power(this.ids(ref).identifier, "restart");
+  }
+
+  async resize(ref: ServerRef, spec: ResourceSpec) {
+    const { internalId } = this.ids(ref);
+
+    // The build endpoint replaces rather than merges, so the current
+    // allocation has to be read and sent back; omitting it unassigns the
+    // server's port.
+    const current = (await pteroApp.getServer(internalId)).attributes;
+
+    try {
+      await pteroApp.updateBuild(internalId, buildResizeBody(spec, current));
+    } catch (error) {
+      // The node the server already sits on may not have room to grow. The
+      // customer has not been charged at this point, so this surfaces as a
+      // capacity problem rather than a failed payment.
+      if (
+        error instanceof AppError &&
+        error.code === "provider_error" &&
+        /memory|disk|resources|capacity|allocat/i.test(error.message)
+      ) {
+        throw new AppError("no_capacity", 409, error.message);
+      }
+      throw error;
+    }
   }
 
   async suspend(ref: ServerRef) {

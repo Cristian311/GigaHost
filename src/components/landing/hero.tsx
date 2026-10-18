@@ -7,11 +7,14 @@ import { Link } from "@/i18n/navigation";
 export function Hero() {
   const t = useTranslations("landing.hero");
 
+  // Only claims the product can stand behind. "99.9% uptime" is an SLA, which
+  // means a contractual commitment with credits attached, and "24/7" is a
+  // staffing promise: both belong here once they are real and written into the
+  // terms, not before. Deployment time and region count are facts about the
+  // system as built.
   const stats = [
-    { value: "99.9%", label: t("stats.uptime") },
     { value: "< 60s", label: t("stats.deploy") },
     { value: "4", label: t("stats.regions") },
-    { value: "24/7", label: t("stats.support") },
   ];
 
   return (
@@ -51,7 +54,7 @@ export function Hero() {
             </Button>
           </div>
 
-          <dl className="mt-12 grid animate-in fade-in fill-mode-both grid-cols-2 gap-6 delay-300 duration-700 sm:grid-cols-4">
+          <dl className="mt-12 grid animate-in fade-in fill-mode-both grid-cols-2 gap-6 delay-300 duration-700">
             {stats.map((stat) => (
               <div key={stat.label}>
                 <dt className="font-heading text-2xl font-bold">{stat.value}</dt>

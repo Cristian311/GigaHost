@@ -14,7 +14,7 @@ import { AppError } from "@/server/errors";
 import type { PowerAction } from "@/lib/validation/server";
 import { listEvents, recordEvent } from "./event-service";
 import { voidPendingRenewals } from "./invoice-service";
-import { notifyServerReady } from "./notification-service";
+import { notifyProvisioningFailed, notifyServerReady } from "./notification-service";
 
 export const serverInclude = {
   game: true,
@@ -348,6 +348,68 @@ export async function provisionServer(server: Server, spec: ServerSpec) {
       include: serverInclude,
     });
     await recordEvent(server.id, "ERROR", "Provisioning failed");
+    // Somebody has paid and has nothing. Without this the only trace was a log
+    // line, so the customer would notice before the operator did.
+    await notifyProvisioningFailed(server.id);
     return failed;
   }
+}
+
+/**
+ * Builds the provisioning spec from a server row. The original spec lived only
+ * in the order snapshot, which made a failed provisioning unrepeatable — the
+ * row itself has everything needed.
+ */
+export async function specForServer(serverId: string): Promise<{
+  server: Server;
+  spec: ServerSpec;
+} | null> {
+  const server = await prisma.server.findUnique({
+    where: { id: serverId },
+    include: { game: true, region: true },
+  });
+  if (!server) return null;
+
+  return {
+    server,
+    spec: {
+      userId: server.ownerId,
+      name: server.name,
+      gameVersion: server.gameVersion,
+      ramGb: server.ramGb,
+      vcpu: server.vcpu,
+      storageGb: server.storageGb,
+      game: server.game,
+      region: server.region,
+    },
+  };
+}
+
+/**
+ * Tries again to build a server whose provisioning failed. Until this existed,
+ * a customer whose payment succeeded but whose server did not build had no way
+ * forward at all: no retry, no refund, just a row in ERROR.
+ */
+export async function retryProvisioning(serverId: string) {
+  const found = await specForServer(serverId);
+  if (!found) throw new AppError("server_not_found", 404);
+
+  const { server, spec } = found;
+  if (server.status !== "ERROR") {
+    throw new AppError(
+      "invalid_transition",
+      409,
+      `Only a server in ERROR can be retried; this one is ${server.status}.`,
+    );
+  }
+  if (server.providerId) {
+    throw new AppError(
+      "invalid_transition",
+      409,
+      "This server already exists on the provider; delete it there first.",
+    );
+  }
+
+  await recordEvent(serverId, "ERROR", "Retrying provisioning");
+  return provisionServer(server, spec);
 }

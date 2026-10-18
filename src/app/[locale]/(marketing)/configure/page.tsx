@@ -4,11 +4,16 @@ import { auth } from "@/auth";
 import { Configurator } from "@/components/configurator/configurator";
 import { SectionHeading } from "@/components/section-heading";
 import { toConfiguratorGames, toConfiguratorRegions } from "@/lib/configurator-data";
+import { alternates } from "@/lib/seo";
+import { isStripeEnabled } from "@/server/payments/stripe-client";
 import { getConfiguratorData } from "@/server/services/pricing-service";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps<"/[locale]/configure">): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations("configure");
-  return { title: t("title") };
+  return { title: t("title"), alternates: alternates(locale, "/configure") };
 }
 
 export default async function ConfigurePage({
@@ -42,6 +47,7 @@ export default async function ConfigurePage({
             pricing={data.pricing}
             initialSearch={initialSearch}
             isAuthenticated={Boolean(session?.user)}
+            paymentsAreReal={isStripeEnabled()}
           />
         </div>
       </div>

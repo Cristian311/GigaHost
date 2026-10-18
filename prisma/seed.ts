@@ -7,6 +7,33 @@ import { addons } from "./addons";
 export const ADMIN_EMAIL = "admin@gigahost.local";
 export const ADMIN_PASSWORD = "admin1234";
 
+/**
+ * The development admin is a published login, so production must supply its
+ * own. Seeding is also the only way to load the catalog, so this refuses to
+ * run rather than quietly creating a well-known account on a live database.
+ */
+function resolveAdminCredentials(): { email: string; password: string; fromEnv: boolean } {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (email && password) {
+    if (password.length < 12) {
+      throw new Error("SEED_ADMIN_PASSWORD must be at least 12 characters.");
+    }
+    return { email, password, fromEnv: true };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Refusing to seed the development admin (" +
+        `${ADMIN_EMAIL} / ${ADMIN_PASSWORD}, both public in the README) into a production database. ` +
+        "Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD.",
+    );
+  }
+
+  return { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, fromEnv: false };
+}
+
 type GameSeed = {
   slug: string;
   name: string;
@@ -222,6 +249,9 @@ const regions = [
 /** Idempotent seed used by `prisma db seed` and by the integration test setup. */
 export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}) {
   const log = options.log === false ? () => {} : console.log;
+  // Resolved first so a misconfigured production run fails before it writes
+  // anything, rather than after seeding the whole catalog.
+  const admin = resolveAdminCredentials();
   log("Seeding games…");
 
   // Earlier seeds had a single "minecraft-java" game. Rename it to Paper so
@@ -307,12 +337,12 @@ export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}
   }
 
   log("Seeding admin user…");
-  const passwordHash = await hash(ADMIN_PASSWORD, 10);
+  const passwordHash = await hash(admin.password, 10);
   await prisma.user.upsert({
-    where: { email: ADMIN_EMAIL },
+    where: { email: admin.email },
     update: { role: "ADMIN" },
     create: {
-      email: ADMIN_EMAIL,
+      email: admin.email,
       name: "GigaHost Admin",
       passwordHash,
       role: "ADMIN",
@@ -320,7 +350,11 @@ export async function seed(prisma: PrismaClient, options: { log?: boolean } = {}
     },
   });
 
-  log(`Done. Admin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  log(
+    admin.fromEnv
+      ? `Done. Admin: ${admin.email} (password from SEED_ADMIN_PASSWORD).`
+      : `Done. Admin login: ${admin.email} / ${admin.password}`,
+  );
 }
 
 // Run directly via `prisma db seed` / `tsx prisma/seed.ts`; skipped when imported by tests.

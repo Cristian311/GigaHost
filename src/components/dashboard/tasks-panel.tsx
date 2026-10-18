@@ -92,7 +92,14 @@ function toLocal(dayOfWeekUtc: number, minuteOfDayUtc: number) {
   return { localDay: date.getDay(), localTime: `${pad(date.getHours())}:${pad(date.getMinutes())}` };
 }
 
-export function TasksPanel({ serverId }: { serverId: string }) {
+export function TasksPanel({
+  serverId,
+  canBackup = true,
+}: {
+  serverId: string;
+  /** False when the provider cannot take backups, so scheduling one would fail. */
+  canBackup?: boolean;
+}) {
   const t = useTranslations("dashboard.tasks");
   const tc = useTranslations("common");
   const format = useFormatter();
@@ -126,7 +133,12 @@ export function TasksPanel({ serverId }: { serverId: string }) {
     // 2026-03-15 is a Sunday, so day N is that date plus N days.
     label: format.dateTime(new Date(2026, 2, 15 + day), { weekday: "long" }),
   }));
-  const actionItems = (["RESTART", "BACKUP", "COMMAND"] as const).map((value) => ({
+  // Offering BACKUP where the provider cannot take one only produces tasks
+  // that fail every time their schedule comes round.
+  const available = canBackup
+    ? (["RESTART", "BACKUP", "COMMAND"] as const)
+    : (["RESTART", "COMMAND"] as const);
+  const actionItems = available.map((value) => ({
     value,
     label: t(`actions.${value}`),
   }));

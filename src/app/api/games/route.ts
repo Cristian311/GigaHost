@@ -3,8 +3,8 @@ import { withApi } from "@/server/api";
 import { parseVersions } from "@/lib/games";
 import { getGames } from "@/server/services/pricing-service";
 
-export async function GET() {
-  return withApi(async () => {
+export async function GET(request: Request) {
+  return withApi(request, async () => {
     const games = await getGames();
     return NextResponse.json(
       games.map((g) => ({

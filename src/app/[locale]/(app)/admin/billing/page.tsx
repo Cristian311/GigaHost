@@ -1,5 +1,6 @@
 import { AlertTriangle, Repeat, Wallet } from "lucide-react";
 import { getFormatter, getLocale, getTranslations, setRequestLocale } from "next-intl/server";
+import { CronHealth } from "@/components/admin/cron-health";
 import { RunBillingButton } from "@/components/admin/run-billing-button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -179,6 +180,10 @@ export default async function AdminBillingPage({
             <p className="mt-2 font-heading text-3xl font-bold tabular-nums">{tile.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mb-6">
+        <CronHealth />
       </div>
 
       <RunBillingButton />

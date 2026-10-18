@@ -6,10 +6,11 @@ import { MONTHS_PER_PERIOD } from "@/lib/pricing/types";
 import type { ResizeServerInput } from "@/lib/validation/server";
 import { AppError } from "@/server/errors";
 import { getPaymentProvider, type ChargeFn } from "@/server/payments";
+import { getProvider } from "@/server/providers";
 import { recordEvent } from "./event-service";
-import { nextInvoiceNumber } from "./invoice-service";
+import { claimInvoiceNumber } from "./invoice-service";
 import { assertMeetsMinimums, getActivePricing, toPricingTable } from "./pricing-service";
-import { getServerForUser, serverInclude } from "./server-service";
+import { getServerForUser, serverInclude, toRef } from "./server-service";
 
 /** Resources may only be changed while the server sits in a stable state. */
 const RESIZABLE_STATUSES = ["STOPPED", "RUNNING"] as const;
@@ -153,6 +154,27 @@ export async function resizeServer(
     },
   });
 
+  const ref = toRef(server);
+  const nextSpec = { ramGb: input.ramGb, vcpu: input.vcpu, storageGb: input.storageGb };
+  const previousSpec = {
+    ramGb: server.ramGb,
+    vcpu: server.vcpu,
+    storageGb: server.storageGb,
+  };
+
+  // Before the charge, not after. The likely failure is the node having no room
+  // to grow, and a customer should not pay for memory the panel just refused.
+  // It throws, which marks the order FAILED below rather than leaving it
+  // PENDING for ever.
+  if (ref) {
+    try {
+      await getProvider().resize(ref, nextSpec);
+    } catch (error) {
+      await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+      throw error;
+    }
+  }
+
   let payment: { paymentProvider: string; paymentReference: string } | undefined;
   if (chargeCents > 0) {
     const charge = deps.charge ?? ((request) => getPaymentProvider().chargeSaved(request));
@@ -165,6 +187,27 @@ export async function resizeServer(
       description: `${server.name} upgrade`,
     });
     if (result.status === "failed") {
+      // The server already has the new resources and nobody paid for them.
+      // Best effort, because the declined card is what the customer needs to
+      // hear about; a failed rollback is an admin's problem, not theirs.
+      if (ref) {
+        try {
+          await getProvider().resize(ref, previousSpec);
+        } catch (rollbackError) {
+          console.error(
+            `[resize] could not roll ${server.id} back after a declined card`,
+            rollbackError,
+          );
+          await prisma.server.update({
+            where: { id: server.id },
+            data: {
+              lastError: `Resize was applied but the payment failed, and the rollback did not go through: ${
+                rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+              }`,
+            },
+          });
+        }
+      }
       await prisma.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
       throw new AppError("payment_failed", 402, result.reason);
     }
@@ -174,46 +217,58 @@ export async function resizeServer(
     };
   }
 
-  const writes: Prisma.PrismaPromise<unknown>[] = [
-    prisma.order.update({ where: { id: order.id }, data: { status: "PAID", ...payment } }),
-    prisma.server.update({
-      where: { id: server.id },
-      data: { ramGb: input.ramGb, vcpu: input.vcpu, storageGb: input.storageGb },
-    }),
-  ];
+  // Rebuilt per attempt: a PrismaPromise can only be awaited once, and the
+  // invoice number may have to be taken again if another writer got it first.
+  const buildWrites = (invoiceNumber: string | null) => {
+    const writes: Prisma.PrismaPromise<unknown>[] = [
+      prisma.order.update({ where: { id: order.id }, data: { status: "PAID", ...payment } }),
+      prisma.server.update({
+        where: { id: server.id },
+        data: { ramGb: input.ramGb, vcpu: input.vcpu, storageGb: input.storageGb },
+      }),
+    ];
 
-  // Upgrades are invoiced immediately; downgrades only create a credit.
+    if (invoiceNumber) {
+      writes.push(
+        prisma.invoice.create({
+          data: {
+            number: invoiceNumber,
+            userId,
+            orderId: order.id,
+            status: "PAID",
+            amountCents: chargeCents,
+            currency: preview.currency,
+            issuedAt: now,
+            dueAt: now,
+            paidAt: now,
+          },
+        }),
+      );
+    }
+
+    if (sub) {
+      writes.push(
+        prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            amountCents: preview.newPeriodCents,
+            creditCents: sub.creditCents + creditCents,
+          },
+        }),
+      );
+    }
+
+    return writes;
+  };
+
+  // Upgrades are invoiced immediately; downgrades only create a credit. The
+  // card has already been charged by this point, so a number taken by a
+  // concurrent writer must be retried rather than surfaced as a failure.
   if (chargeCents > 0) {
-    writes.push(
-      prisma.invoice.create({
-        data: {
-          number: await nextInvoiceNumber(),
-          userId,
-          orderId: order.id,
-          status: "PAID",
-          amountCents: chargeCents,
-          currency: preview.currency,
-          issuedAt: now,
-          dueAt: now,
-          paidAt: now,
-        },
-      }),
-    );
+    await claimInvoiceNumber((number) => prisma.$transaction(buildWrites(number)));
+  } else {
+    await prisma.$transaction(buildWrites(null));
   }
-
-  if (sub) {
-    writes.push(
-      prisma.subscription.update({
-        where: { id: sub.id },
-        data: {
-          amountCents: preview.newPeriodCents,
-          creditCents: sub.creditCents + creditCents,
-        },
-      }),
-    );
-  }
-
-  await prisma.$transaction(writes);
 
   await recordEvent(server.id, "RESIZED", undefined, {
     from: preview.current,

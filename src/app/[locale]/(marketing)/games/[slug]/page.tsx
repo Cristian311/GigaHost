@@ -8,15 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { COMING_SOON, parseVersions } from "@/lib/games";
 import { calculatePrice, formatMoney } from "@/lib/pricing/calculate-price";
+import { alternates } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { getActivePricing, getGameBySlug, toPricingTable } from "@/server/services/pricing-service";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/[locale]/games/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
   const game = await getGameBySlug(slug);
-  return { title: game?.name ?? "Game", description: game?.tagline };
+  return {
+    title: game?.name ?? "Game",
+    description: game?.tagline,
+    alternates: alternates(locale, `/games/${slug}`),
+  };
 }
 
 export default async function GameDetailPage({ params }: PageProps<"/[locale]/games/[slug]">) {

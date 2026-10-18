@@ -6,8 +6,8 @@ import { getCheckoutState } from "@/server/services/payment-service";
 type Context = { params: Promise<{ id: string }> };
 
 /** Polled by the checkout success page until the order has been fulfilled. */
-export async function GET(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function GET(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     return NextResponse.json(await getCheckoutState(id, user.id));

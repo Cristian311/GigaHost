@@ -6,8 +6,8 @@ import { createTask, listTasks } from "@/server/services/task-service";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function GET(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     return NextResponse.json(await listTasks(id, user.id));
@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: Context) {
 }
 
 export async function POST(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const input = await parseJson(request, taskSchema);

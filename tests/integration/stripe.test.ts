@@ -20,6 +20,7 @@ const INPUT = {
   storageGb: 20,
   regionCode: "eu-ro",
   billingPeriod: "MONTHLY" as const,
+  waiveWithdrawal: true as const,
 };
 const URLS = {
   successUrl: "https://gigahost.test/en/dashboard/checkout/success",

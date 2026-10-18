@@ -162,3 +162,93 @@ export async function notifyServerDeleted(serverId: string) {
     });
   });
 }
+
+/**
+ * Warns that a card is about to be charged. Sent once per period: the flag on
+ * the subscription is what stops an hourly scheduler sending it every hour for
+ * the whole warning window.
+ */
+export async function notifyRenewalUpcoming(subscriptionId: string) {
+  await guarded("renewalUpcoming", async () => {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { user: true, server: true },
+    });
+    if (!subscription?.server) return;
+
+    const locale = mailLocale(subscription.user.locale);
+    await sendEmailSafely({
+      to: subscription.user.email,
+      userId: subscription.userId,
+      template: "renewalUpcoming",
+      email: templates.renewalUpcoming({
+        locale,
+        name: subscription.user.name,
+        serverName: subscription.server.name,
+        amount: formatMoney(subscription.amountCents, subscription.currency, locale),
+        date: dateIn(locale, subscription.currentPeriodEnd),
+        url: `${APP_URL}/${locale}/dashboard/billing`,
+      }),
+    });
+  });
+}
+
+/** Tells the customer that support replied, so they do not have to keep looking. */
+export async function notifyTicketReplied(ticketId: string) {
+  await guarded("ticketReplied", async () => {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { user: true },
+    });
+    if (!ticket) return;
+
+    const locale = mailLocale(ticket.user.locale);
+    await sendEmailSafely({
+      to: ticket.user.email,
+      userId: ticket.userId,
+      template: "ticketReplied",
+      email: templates.ticketReplied({
+        locale,
+        name: ticket.user.name,
+        subject: ticket.subject,
+        url: `${APP_URL}/${locale}/dashboard/support/${ticket.id}`,
+      }),
+    });
+  });
+}
+
+/**
+ * Tells whoever runs the platform that a paid order did not turn into a
+ * server. Goes to every admin, because there is no on-call rota to address.
+ */
+export async function notifyProvisioningFailed(serverId: string) {
+  await guarded("provisioningFailed", async () => {
+    const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      include: { owner: true },
+    });
+    if (!server) return;
+
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true, email: true, name: true, locale: true },
+    });
+
+    for (const admin of admins) {
+      const locale = mailLocale(admin.locale);
+      await sendEmailSafely({
+        to: admin.email,
+        userId: admin.id,
+        template: "provisioningFailed",
+        email: templates.provisioningFailed({
+          locale,
+          name: admin.name,
+          serverName: server.name,
+          customerEmail: server.owner.email,
+          reason: server.lastError ?? "unknown",
+          url: `${APP_URL}/${locale}/admin/servers`,
+        }),
+      });
+    }
+  });
+}

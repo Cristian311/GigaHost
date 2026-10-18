@@ -21,6 +21,7 @@ describe("checkout (simulated)", () => {
       storageGb: 50,
       regionCode: "eu-de",
       billingPeriod: "YEARLY",
+      waiveWithdrawal: true,
     });
 
     const order = await prisma.order.findUniqueOrThrow({
@@ -77,6 +78,7 @@ describe("checkout (simulated)", () => {
       storageGb: 30,
       regionCode: "eu-uk",
       billingPeriod: "QUARTERLY",
+      waiveWithdrawal: true,
     });
 
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
@@ -95,6 +97,7 @@ describe("checkout (simulated)", () => {
       storageGb: 10,
       regionCode: "eu-ro",
       billingPeriod: "QUARTERLY",
+      waiveWithdrawal: true,
     });
 
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { serverId } });
@@ -116,6 +119,7 @@ describe("checkout (simulated)", () => {
         storageGb: 20,
         regionCode: "eu-ro",
         billingPeriod: "MONTHLY",
+        waiveWithdrawal: true,
       }),
     ).rejects.toMatchObject({ code: "game_unavailable" });
   });
@@ -170,6 +174,7 @@ describe("checkout (simulated)", () => {
         storageGb: 10,
         regionCode: "eu-ro",
         billingPeriod: "MONTHLY",
+        waiveWithdrawal: true,
       }),
     ).rejects.toBeInstanceOf(AppError);
 
@@ -198,5 +203,6 @@ function createOne(userId: string, name: string) {
     storageGb: 10,
     regionCode: "eu-ro",
     billingPeriod: "MONTHLY",
+    waiveWithdrawal: true,
   });
 }

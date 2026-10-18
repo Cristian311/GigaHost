@@ -5,7 +5,8 @@ import type { CreateServerInput } from "@/lib/validation/server";
 import { AppError } from "@/server/errors";
 import { getPaymentProvider } from "@/server/payments";
 import { redeemCoupon, validateCoupon } from "./coupon-service";
-import { nextInvoiceNumber } from "./invoice-service";
+import { claimInvoiceNumber, nextInvoiceNumber } from "./invoice-service";
+import { withJobLock } from "./job-lock";
 import { notifyOrderConfirmed } from "./notification-service";
 import { quote } from "./pricing-service";
 import { createServerRecord, provisionServer, type ServerSpec } from "./server-service";
@@ -61,6 +62,9 @@ export async function createOrder(userId: string, input: CreateServerInput) {
     data: {
       userId,
       status: "PENDING",
+      // Stamped at the moment of the order, which is when the customer made
+      // the request; the schema above will not let it through otherwise.
+      withdrawalWaivedAt: new Date(),
       billingPeriod: input.billingPeriod,
       configSnapshot: JSON.stringify(snapshot),
       subtotalCents: breakdown.subtotalCents,
@@ -73,15 +77,31 @@ export async function createOrder(userId: string, input: CreateServerInput) {
   });
 }
 
+/** Provisioning is quick; this only has to outlive one fulfilment attempt. */
+const FULFILMENT_LOCK_TTL_MS = 5 * 60_000;
+
 /**
  * Turns a paid order into a server, an invoice and a subscription. Safe to call
- * more than once for the same order (gateways redeliver webhooks): only the
- * call that flips the order from PENDING to PAID does the work.
+ * more than once for the same order (gateways redeliver webhooks, and the
+ * success page checks for itself when the webhook is late).
+ *
+ * The lease serialises those callers, so the resumption below cannot run twice
+ * at once and provision two servers for one order.
  */
 export async function fulfilOrder(
   orderId: string,
   paidAt: Date = new Date(),
 ): Promise<FulfilledOrder> {
+  const result = await withJobLock(`order:${orderId}`, () => fulfilOrderPass(orderId, paidAt), {
+    ttlMs: FULFILMENT_LOCK_TTL_MS,
+  });
+  if (result) return result;
+  // Someone else is part-way through this very order. Retryable on purpose:
+  // the caller should ask again rather than treat it as a dead order.
+  throw new AppError("order_in_progress", 409, "This order is already being fulfilled.");
+}
+
+async function fulfilOrderPass(orderId: string, paidAt: Date): Promise<FulfilledOrder> {
   const claimed = await prisma.order.updateMany({
     where: { id: orderId, status: "PENDING", kind: "NEW" },
     data: { status: "PAID" },
@@ -91,77 +111,112 @@ export async function fulfilOrder(
   if (!order || order.kind !== "NEW") throw new AppError("order_not_found", 404);
 
   if (claimed.count === 0) {
-    if (order.status === "PAID" && order.serverId) {
+    if (order.status !== "PAID") {
+      throw new AppError("order_not_found", 409, `Order is ${order.status}.`);
+    }
+    // Paid and finished: hand back the same answer as the first call.
+    const subscription = await prisma.subscription.findFirst({
+      where: { orderId: order.id },
+      select: { id: true },
+    });
+    if (subscription && order.serverId) {
       return { orderId: order.id, serverId: order.serverId };
     }
-    throw new AppError("order_not_found", 409, `Order is ${order.status}.`);
+    // Paid but unfinished — a crash between the steps below. Rather than
+    // reporting a dead order to a customer who has been charged, pick the work
+    // up where it stopped. Every step from here is written to be repeatable.
   }
 
   const snapshot = JSON.parse(order.configSnapshot) as OrderSnapshot;
-  const [game, region] = await Promise.all([
-    prisma.game.findUnique({ where: { slug: snapshot.gameSlug } }),
-    prisma.region.findUnique({ where: { code: snapshot.regionCode } }),
-  ]);
-  if (!game) throw new AppError("game_not_found", 404);
-  if (!region) throw new AppError("region_not_found", 404);
 
-  const spec: ServerSpec = {
-    userId: order.userId,
-    name: snapshot.name,
-    gameVersion: snapshot.gameVersion,
-    ramGb: snapshot.ramGb,
-    vcpu: snapshot.vcpu,
-    storageGb: snapshot.storageGb,
-    game,
-    region,
-  };
-  const server = await provisionServer(await createServerRecord(spec), spec);
+  let server = order.serverId
+    ? await prisma.server.findUnique({ where: { id: order.serverId } })
+    : null;
 
-  const invoiceNumber = await nextInvoiceNumber();
+  if (!server) {
+    const [game, region] = await Promise.all([
+      prisma.game.findUnique({ where: { slug: snapshot.gameSlug } }),
+      prisma.region.findUnique({ where: { code: snapshot.regionCode } }),
+    ]);
+    if (!game) throw new AppError("game_not_found", 404);
+    if (!region) throw new AppError("region_not_found", 404);
+
+    const spec: ServerSpec = {
+      userId: order.userId,
+      name: snapshot.name,
+      gameVersion: snapshot.gameVersion,
+      ramGb: snapshot.ramGb,
+      vcpu: snapshot.vcpu,
+      storageGb: snapshot.storageGb,
+      game,
+      region,
+    };
+    const record = await createServerRecord(spec);
+    // Linked before provisioning, not after: a crash in between would
+    // otherwise leave a server nothing points at, and the resumption above
+    // would build a second one.
+    await prisma.order.update({ where: { id: order.id }, data: { serverId: record.id } });
+    server = await provisionServer(record, spec);
+  }
+
+  const serverId = server.id;
   const months = MONTHS_PER_PERIOD[order.billingPeriod];
 
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({ where: { id: order.id }, data: { serverId: server.id } });
-    await tx.invoice.create({
-      data: {
-        number: invoiceNumber,
-        userId: order.userId,
-        orderId: order.id,
-        status: "PAID",
-        amountCents: order.totalCents,
-        currency: order.currency,
-        issuedAt: paidAt,
-        dueAt: paidAt,
-        paidAt,
-      },
-    });
-    await tx.subscription.create({
-      data: {
-        userId: order.userId,
-        serverId: server.id,
-        orderId: order.id,
-        status: "ACTIVE",
-        billingPeriod: order.billingPeriod,
-        // Renewals are billed at the regular price: a coupon only ever
-        // discounts the first invoice.
-        amountCents: snapshot.breakdown.totalCents,
-        currency: order.currency,
-        currentPeriodStart: paidAt,
-        currentPeriodEnd: addMonths(paidAt, months),
-      },
-    });
-    if (order.couponId) {
-      await redeemCoupon(tx, {
-        couponId: order.couponId,
-        userId: order.userId,
-        orderId: order.id,
-        amountCents: order.couponDiscountCents,
-      });
-    }
-  });
+  // Each of these is skipped if a previous attempt already wrote it.
+  const [existingInvoice, existingSubscription] = await Promise.all([
+    prisma.invoice.findFirst({ where: { orderId: order.id }, select: { id: true } }),
+    prisma.subscription.findFirst({ where: { orderId: order.id }, select: { id: true } }),
+  ]);
+
+  await claimInvoiceNumber((invoiceNumber) =>
+    prisma.$transaction(async (tx) => {
+      if (!existingInvoice) {
+        await tx.invoice.create({
+          data: {
+            number: invoiceNumber,
+            userId: order.userId,
+            orderId: order.id,
+            status: "PAID",
+            amountCents: order.totalCents,
+            currency: order.currency,
+            issuedAt: paidAt,
+            dueAt: paidAt,
+            paidAt,
+          },
+        });
+      }
+      if (!existingSubscription) {
+        await tx.subscription.create({
+          data: {
+            userId: order.userId,
+            serverId,
+            orderId: order.id,
+            status: "ACTIVE",
+            billingPeriod: order.billingPeriod,
+            // Renewals are billed at the regular price: a coupon only ever
+            // discounts the first invoice.
+            amountCents: snapshot.breakdown.totalCents,
+            currency: order.currency,
+            currentPeriodStart: paidAt,
+            currentPeriodEnd: addMonths(paidAt, months),
+          },
+        });
+        // Inside the same guard as the subscription, so a resumed run cannot
+        // redeem the coupon a second time.
+        if (order.couponId) {
+          await redeemCoupon(tx, {
+            couponId: order.couponId,
+            userId: order.userId,
+            orderId: order.id,
+            amountCents: order.couponDiscountCents,
+          });
+        }
+      }
+    }),
+  );
 
   await notifyOrderConfirmed(order.id);
-  return { orderId: order.id, serverId: server.id };
+  return { orderId: order.id, serverId };
 }
 
 /**

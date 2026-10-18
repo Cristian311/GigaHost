@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      # The integration suite talks to a real database: it drops and rebuilds
+      # its own, so it must not be pointed at anything that matters.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: gigahost
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pgigahost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql://root:gigahost@127.0.0.1:3306/gigahost
+      TEST_DATABASE_URL: mysql://root:gigahost@127.0.0.1:3306/gigahost_test
+      # Substituted into the bundle at build time, so it has to be set here too.
+      NEXT_PUBLIC_APP_URL: https://gigahost.test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create the databases
+        run: |
+          mysql -h 127.0.0.1 -uroot -pgigahost -e "
+            CREATE DATABASE IF NOT EXISTS gigahost      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            CREATE DATABASE IF NOT EXISTS gigahost_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      # Development runs on MariaDB and production on MySQL 8, which disagree
+      # about things like a literal DEFAULT on a TEXT column. Applying the whole
+      # chain to an empty MySQL is the only thing that catches that before a
+      # deploy does.
+      - name: Apply migrations from scratch
+        run: npx prisma migrate deploy
+
+      # The database above was built purely from the migrations, so comparing it
+      # with the schema catches a schema.prisma change nobody generated a
+      # migration for. --exit-code: 0 empty, 2 a difference, 1 an error.
+      - name: Check the schema matches the migrations
+        run: |
+          npx prisma migrate diff \
+            --from-config-datasource \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+          echo "Schema and migrations agree."
+
+      - run: npx tsc --noEmit
+
+      - run: npx eslint
+
+      - run: npx vitest run
+
+      - run: npx next build
+
+      # Advisories in code that serves requests. The Prisma CLI's own tree is
+      # excluded deliberately: it builds and migrates, it does not serve.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=critical
+        continue-on-error: true

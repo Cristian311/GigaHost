@@ -42,4 +42,10 @@ export const BILLING_POLICY = {
   retryEveryHours: 24,
   /** Cap on periods billed in one run for a subscription the scheduler missed. */
   maxCatchUpPeriods: 12,
+  /**
+   * Days before a renewal that the customer is warned their card will be
+   * charged. Long enough to cancel comfortably, short enough to still be
+   * connected to the charge when it arrives.
+   */
+  renewalNoticeDays: 5,
 } as const;

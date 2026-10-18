@@ -54,7 +54,14 @@
     "contact": "Contact",
     "terms": "Termeni",
     "privacy": "Confidențialitate",
-    "rights": "Toate drepturile rezervate."
+    "rights": "Toate drepturile rezervate.",
+    "cookies": "Cookie-uri",
+    "withdrawal": "Dreptul de retragere",
+    "cui": "CUI",
+    "tradeRegister": "Reg. Com.",
+    "vatNumber": "CIF TVA",
+    "anpcSal": "ANPC — SAL",
+    "odr": "Platforma SOL"
   },
   "landing": {
     "hero": {
@@ -81,7 +88,7 @@
         },
         "ddos": {
           "title": "Protecție DDoS",
-          "desc": "Mitigare permanentă care ține serverul accesibil chiar și în timpul atacurilor."
+          "desc": "Serverele stau în spatele filtrării la nivel de rețea a furnizorului nostru."
         },
         "panel": {
           "title": "Panou de control modern",
@@ -97,7 +104,7 @@
         },
         "support": {
           "title": "Suport uman",
-          "desc": "Gameri adevărați de cealaltă parte a chatului, non-stop."
+          "desc": "Oameni reali de cealaltă parte a chatului și un istoric de tichete pe care îl poți urmări."
         }
       }
     },
@@ -110,26 +117,6 @@
       "title": "Prețuri transparente, pe resursă",
       "subtitle": "Fără pachete, fără upsell. Plătești exact RAM-ul, CPU-ul și stocarea pe care le alegi.",
       "cta": "Deschide configuratorul complet"
-    },
-    "testimonials": {
-      "title": "Îndrăgit de comunități",
-      "items": [
-        {
-          "quote": "Am mutat SMP-ul nostru de 60 de jucători într-o seară. Zero lag de atunci, iar consola din panou e salvatoare.",
-          "name": "Andrei P.",
-          "role": "Admin comunitate Minecraft"
-        },
-        {
-          "quote": "Ziua de wipe era stresantă. Acum o programez și mă duc să dau stream. Serverele de Rust țin.",
-          "name": "Kira",
-          "role": "Streamer Twitch"
-        },
-        {
-          "quote": "Să pot adăuga 4 GB de RAM pentru un eveniment de weekend și să-i scot luni e exact ce ne trebuia.",
-          "name": "Mihai D.",
-          "role": "Lider clan Valheim"
-        }
-      ]
     },
     "faq": {
       "title": "Întrebări frecvente",
@@ -151,10 +138,13 @@
           "a": "Serverul rămâne activ până la finalul perioadei plătite. Poți descărca un backup complet înainte să fie șters."
         },
         {
+          "id": "payments",
           "q": "Ce metode de plată acceptați?",
           "a": "Plata cu cardul prin Stripe vine în curând. În perioada de preview, checkout-ul este simulat și nu se percep bani."
         }
-      ]
+      ],
+      "paymentsSimulated": "Plata cu cardul prin Stripe vine în curând. În perioada de preview, checkout-ul este simulat și nu se percep bani.",
+      "paymentsLive": "Acceptăm plata cu cardul (Visa, Mastercard) prin Stripe. Datele cardului nu ajung niciodată pe serverele noastre."
     }
   },
   "games": {
@@ -235,7 +225,8 @@
       "region_not_configured": "Această locație nu acceptă încă servere noi.",
       "no_capacity": "Locația este plină momentan. Alege alta sau încearcă mai târziu.",
       "provider_unavailable": "Infrastructura de servere nu răspunde momentan. Nu ai fost taxat; încearcă din nou în câteva minute.",
-      "provider_error": "Serverul nu a putut fi creat. Nu ai fost taxat; încearcă din nou sau contactează suportul."
+      "provider_error": "Serverul nu a putut fi creat. Nu ai fost taxat; încearcă din nou sau contactează suportul.",
+      "withdrawal_waiver_required": "Confirmă acest lucru pentru a continua."
     },
     "coupon": {
       "label": "Cod de reducere",
@@ -253,7 +244,8 @@
         "internal_error": "Nu am putut verifica codul. Încearcă din nou.",
         "rate_limited": "Ai încercat prea multe coduri. Așteaptă un minut."
       }
-    }
+    },
+    "waiveWithdrawal": "Solicit ca serverul să fie creat imediat și înțeleg că îmi pierd <link>dreptul de retragere în 14 zile</link> odată ce serviciul a fost prestat integral."
   },
   "auth": {
     "login": {
@@ -278,7 +270,9 @@
       "submit": "Creează cont",
       "submitting": "Se creează…",
       "hasAccount": "Ai deja cont?",
-      "login": "Autentifică-te"
+      "login": "Autentifică-te",
+      "acceptTerms": "Sunt de acord cu <terms>Termenii și condițiile</terms> și cu <privacy>Politica de confidențialitate</privacy> și am cel puțin 16 ani.",
+      "acceptTermsRequired": "Acceptă termenii pentru a crea un cont."
     },
     "oauth": {
       "or": "sau continuă cu",
@@ -480,7 +474,9 @@
         "PAYMENT_FAILED": "Plată eșuată",
         "ADDON_INSTALLED": "Extensie instalată",
         "ADDON_REMOVED": "Extensie eliminată",
-        "TASK_RAN": "Sarcină programată rulată"
+        "TASK_RAN": "Sarcină programată rulată",
+        "REFUNDED": "Plată rambursată",
+        "DISPUTED": "Plată contestată"
       }
     },
     "console": {
@@ -690,6 +686,20 @@
       "invalid_credentials": "Parola curentă este incorectă.",
       "validation": "Verifică câmpurile evidențiate.",
       "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
+    },
+    "privacy": {
+      "title": "Datele tale",
+      "exportTitle": "Descarcă-ți datele",
+      "exportDesc": "O copie a tot ce deținem despre tine: contul, serverele, comenzile, facturile și conversațiile de suport, ca fișier JSON.",
+      "exportButton": "Descarcă",
+      "deleteTitle": "Șterge-ți contul",
+      "deleteDesc": "Se șterge contul și, odată cu el, serverele tale și tot ce se află pe ele. Facturile se păstrează, fără numele tău pe ele, pentru că legea contabilă o cere.",
+      "deleteButton": "Șterge contul meu",
+      "deleteWarning": "Acțiunea nu poate fi anulată. Serverele și lumile lor se șterg imediat.",
+      "deleteConfirm": "Șterge definitiv",
+      "deleteNeedsPassword": "Setează întâi o parolă, ca să putem confirma că ești chiar tu.",
+      "confirmPassword": "Confirmă cu parola ta",
+      "wrongPassword": "Parola nu este corectă."
     }
   },
   "admin": {
@@ -740,7 +750,9 @@
         "server_not_found": "Serverul nu a fost găsit.",
         "internal_error": "A apărut o eroare. Te rugăm să încerci din nou."
       },
-      "lastError": "Eroare"
+      "lastError": "Eroare",
+      "retry": "Reîncearcă",
+      "retried": "Provizionare reîncercată."
     },
     "regions": {
       "title": "Regiuni",
@@ -864,7 +876,8 @@
       "attempts": "Încercări",
       "willCancel": "se va anula",
       "empty": "Nimic aici.",
-      "limitNotice": "Se afișează cele mai recente 200 de înregistrări."
+      "limitNotice": "Se afișează cele mai recente 200 de înregistrări.",
+      "reportSkipped": "O altă rulare de facturare este în curs; nu s-a făcut nimic. Încearcă din nou imediat."
     },
     "coupons": {
       "add": "Cupon nou",
@@ -922,17 +935,32 @@
       "deletedUser": "cont șters",
       "empty": "Nicio acțiune de admin înregistrată încă.",
       "actions": {
-        "pricing.update": "Prețuri actualizate",
-        "game.upsert": "Joc salvat",
-        "game.delete": "Joc șters",
-        "region.upsert": "Regiune salvată",
-        "region.delete": "Regiune ștearsă",
-        "coupon.upsert": "Cupon salvat",
-        "coupon.delete": "Cupon șters",
-        "server.suspend": "Server suspendat",
-        "server.unsuspend": "Server reactivat",
-        "user.role": "Rol schimbat",
-        "billing.run": "Ciclu de facturare rulat"
+        "pricing": {
+          "update": "Prețuri actualizate"
+        },
+        "game": {
+          "upsert": "Joc salvat",
+          "delete": "Joc șters"
+        },
+        "region": {
+          "upsert": "Regiune salvată",
+          "delete": "Regiune ștearsă"
+        },
+        "coupon": {
+          "upsert": "Cupon salvat",
+          "delete": "Cupon șters"
+        },
+        "server": {
+          "suspend": "Server suspendat",
+          "unsuspend": "Server reactivat",
+          "delete": "Server șters"
+        },
+        "user": {
+          "role": "Rol schimbat"
+        },
+        "billing": {
+          "run": "Ciclu de facturare rulat"
+        }
       }
     },
     "overview": {
@@ -947,6 +975,16 @@
       "mock": "Simulată (mock)",
       "connected": "Conectat",
       "unreachable": "Indisponibil"
+    },
+    "cron": {
+      "title": "Planificator",
+      "hint": "Ambele joburi trebuie apelate de cron-ul tău. Nimic nu rulează de la sine.",
+      "ok": "Funcționează",
+      "failing": "Eșuează",
+      "stale": "Nu rulează",
+      "never": "Nu a rulat niciodată",
+      "lastRun": "Ultima rulare {when} · {duration}ms",
+      "failures": "{count, plural, one {# eșec} few {# eșecuri} other {# de eșecuri}} în ultimele 24 de ore"
     }
   },
   "errors": {
@@ -1095,5 +1133,12 @@
         "CLOSED": "Închis"
       }
     }
+  },
+  "legal": {
+    "updated": "Ultima actualizare {date}",
+    "draftTitle": "Ciornă — neavizată încă juridic",
+    "draftBody": "Textul a fost scris după modul real de funcționare al serviciului, ceea ce îl face corect, dar nu și autoritar. Trimite-l spre avizare înainte de a vinde, apoi setează LEGAL_REVIEWED=true pentru a elimina această notificare.",
+    "noCompanyTitle": "Lipsesc datele comerciantului",
+    "noCompanyBody": "Legea română cere ca vânzătorul să se identifice pe site. Setează variabilele de mediu COMPANY_* pentru ca denumirea firmei, numărul de înregistrare și adresa de contact să apară în subsol."
   }
 }

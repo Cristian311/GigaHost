@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, PlayCircle, Trash2 } from "lucide-react";
+import { Ban, PlayCircle, RefreshCw, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import {
   adminDeleteServerAction,
+  retryProvisioningAction,
   suspendServerAction,
   unsuspendServerAction,
 } from "@/server/actions/admin";
@@ -133,6 +134,18 @@ export function AdminServersTable({ servers }: { servers: AdminServerRow[] }) {
                 <TableCell>{format.dateTime(server.createdAt, { dateStyle: "medium" })}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
+                    {/* A paid order whose server never built. Retrying is the
+                        difference between an incident and a refund. */}
+                    {server.status === "ERROR" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => run(server, retryProvisioningAction, t("retried"))}
+                      >
+                        <RefreshCw data-icon="inline-start" /> {t("retry")}
+                      </Button>
+                    ) : null}
                     {suspended ? (
                       <Button
                         size="sm"

@@ -11,6 +11,7 @@ export type AuditAction =
   | "server.suspend"
   | "server.unsuspend"
   | "server.delete"
+  | "server.retryProvisioning"
   | "user.role"
   | "billing.run";
 

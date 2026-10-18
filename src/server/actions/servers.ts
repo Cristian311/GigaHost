@@ -13,6 +13,7 @@ import {
   resizeServerSchema,
 } from "@/lib/validation/server";
 import { getOptionalUser, requireUser } from "@/server/auth-guard";
+import { clientSafeDetails } from "@/server/api";
 import { AppError } from "@/server/errors";
 import { RATE_LIMITS, assertRateLimit, clientIp } from "@/server/security/rate-limit";
 import { assertEmailVerified } from "@/server/services/account-security-service";
@@ -42,7 +43,9 @@ function toActionError(error: unknown): ActionResult<never> {
     return { ok: false, error: "validation", details: z.flattenError(error) };
   }
   if (error instanceof AppError) {
-    return { ok: false, error: error.code, details: error.details ?? error.message };
+    // Not error.message: it often carries the provider's own text, which
+    // names the panel URL. See clientSafeDetails in server/api.ts.
+    return { ok: false, error: error.code, details: clientSafeDetails(error) };
   }
   console.error(error);
   return { ok: false, error: "internal_error" };

@@ -300,6 +300,102 @@ export const templates = {
           },
     );
   },
+  /**
+   * Sent a few days before a card is charged. Required in spirit by the
+   * subscription rules customers expect, and in practice it is what stops a
+   * renewal being disputed as an unexpected charge.
+   */
+  renewalUpcoming({
+    locale,
+    name,
+    serverName,
+    amount,
+    date,
+    url,
+  }: Base & { serverName: string; amount: string; date: string; url: string }) {
+    return render(
+      locale === "ro"
+        ? {
+            subject: `Abonamentul pentru „${serverName}” se reînnoiește pe ${date}`,
+            lines: [
+              hello(locale, name),
+              `Pe ${date} vom reînnoi automat abonamentul pentru „${serverName}” și vom încasa ${amount} de pe cardul salvat.`,
+              "Nu trebuie să faci nimic dacă vrei să continui. Dacă nu, poți anula din panou până atunci, iar serverul va rămâne activ până la finalul perioadei deja plătite.",
+            ],
+            action: { label: "Vezi abonamentul", url },
+          }
+        : {
+            subject: `"${serverName}" renews on ${date}`,
+            lines: [
+              hello(locale, name),
+              `On ${date} we will renew the subscription for "${serverName}" and charge ${amount} to your saved card.`,
+              "There is nothing to do if you want to continue. If you do not, you can cancel from the dashboard before then, and your server stays up until the end of the period you have already paid for.",
+            ],
+            action: { label: "View subscription", url },
+          },
+    );
+  },
+
+  /** Support replied. Without this the customer has to keep checking the page. */
+  ticketReplied({
+    locale,
+    name,
+    subject,
+    url,
+  }: Base & { subject: string; url: string }) {
+    return render(
+      locale === "ro"
+        ? {
+            subject: `Răspuns la tichetul „${subject}”`,
+            lines: [
+              hello(locale, name),
+              `Echipa de suport a răspuns la tichetul tău „${subject}”.`,
+            ],
+            action: { label: "Vezi răspunsul", url },
+            footnote: "Răspunde din panou, nu la acest email.",
+          }
+        : {
+            subject: `Reply to your ticket "${subject}"`,
+            lines: [hello(locale, name), `Support has replied to your ticket "${subject}".`],
+            action: { label: "Read the reply", url },
+            footnote: "Reply from the dashboard rather than to this email.",
+          },
+    );
+  },
+  /**
+   * To the operator, not the customer. A provisioning failure leaves someone
+   * who has paid with a server in ERROR, and until this existed the only trace
+   * was a log line nobody was watching.
+   */
+  provisioningFailed({
+    locale,
+    serverName,
+    customerEmail,
+    reason,
+    url,
+  }: Base & { serverName: string; customerEmail: string; reason: string; url: string }) {
+    return render(
+      locale === "ro"
+        ? {
+            subject: `Provizionare eșuată: „${serverName}"`,
+            lines: [
+              `Serverul „${serverName}" al clientului ${customerEmail} a fost plătit, dar nu a putut fi creat.`,
+              `Motiv: ${reason}`,
+              "Clientul are un server în ERROR. Reîncearcă provizionarea din panoul de administrare sau rambursează comanda.",
+            ],
+            action: { label: "Deschide serverul", url },
+          }
+        : {
+            subject: `Provisioning failed: "${serverName}"`,
+            lines: [
+              `"${serverName}" for ${customerEmail} was paid for but could not be created.`,
+              `Reason: ${reason}`,
+              "The customer has a server in ERROR. Retry provisioning from the admin area, or refund the order.",
+            ],
+            action: { label: "Open the server", url },
+          },
+    );
+  },
 };
 
 export type TemplateName = keyof typeof templates;

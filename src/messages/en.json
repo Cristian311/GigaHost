@@ -54,7 +54,14 @@
     "contact": "Contact",
     "terms": "Terms",
     "privacy": "Privacy",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "cookies": "Cookies",
+    "withdrawal": "Right of withdrawal",
+    "cui": "Reg. code",
+    "tradeRegister": "Trade Register",
+    "vatNumber": "VAT",
+    "anpcSal": "ANPC — dispute resolution",
+    "odr": "EU ODR platform"
   },
   "landing": {
     "hero": {
@@ -81,7 +88,7 @@
         },
         "ddos": {
           "title": "DDoS protection",
-          "desc": "Always-on mitigation keeps your server reachable during attacks."
+          "desc": "Servers sit behind our provider network-level filtering."
         },
         "panel": {
           "title": "Modern control panel",
@@ -97,7 +104,7 @@
         },
         "support": {
           "title": "Human support",
-          "desc": "Real gamers on the other side of the chat, around the clock."
+          "desc": "Real people on the other side of the chat, and a ticket history you can follow."
         }
       }
     },
@@ -110,26 +117,6 @@
       "title": "Transparent, per-resource pricing",
       "subtitle": "No tiers, no upsells. You pay for exactly the RAM, CPU and storage you choose.",
       "cta": "Open full configurator"
-    },
-    "testimonials": {
-      "title": "Loved by communities",
-      "items": [
-        {
-          "quote": "Moved our 60-player SMP over in an evening. Zero lag since, and the console in the dashboard is a life saver.",
-          "name": "Andrei P.",
-          "role": "Minecraft community admin"
-        },
-        {
-          "quote": "Wipe day used to be stressful. Now I schedule it and go stream. The Rust servers just hold up.",
-          "name": "Kira",
-          "role": "Twitch streamer"
-        },
-        {
-          "quote": "Being able to add 4 GB of RAM for a weekend event and drop it on Monday is exactly what we needed.",
-          "name": "Mihai D.",
-          "role": "Valheim clan leader"
-        }
-      ]
     },
     "faq": {
       "title": "Frequently asked questions",
@@ -151,10 +138,13 @@
           "a": "Your server keeps running until the end of the paid period. You can download a full backup before it is removed."
         },
         {
+          "id": "payments",
           "q": "Which payment methods are accepted?",
           "a": "Card payments through Stripe are coming soon. During the preview, checkout is simulated and no money is charged."
         }
-      ]
+      ],
+      "paymentsSimulated": "Card payments through Stripe are coming soon. During the preview, checkout is simulated and no money is charged.",
+      "paymentsLive": "We accept card payments (Visa, Mastercard) through Stripe. Your card details never touch our servers."
     }
   },
   "games": {
@@ -235,7 +225,8 @@
       "region_not_configured": "This location is not accepting new servers yet.",
       "no_capacity": "This location is full right now. Pick another one or try again later.",
       "provider_unavailable": "Our server infrastructure is not reachable right now. Nothing was charged; please try again in a few minutes.",
-      "provider_error": "The server could not be created. Nothing was charged; please try again or contact support."
+      "provider_error": "The server could not be created. Nothing was charged; please try again or contact support.",
+      "withdrawal_waiver_required": "Please confirm this to continue."
     },
     "coupon": {
       "label": "Coupon code",
@@ -253,7 +244,8 @@
         "internal_error": "Could not check the code. Please try again.",
         "rate_limited": "Too many codes tried. Please wait a minute."
       }
-    }
+    },
+    "waiveWithdrawal": "I ask for my server to be set up immediately and I understand that I lose my <link>14-day right of withdrawal</link> once it has been fully provided."
   },
   "auth": {
     "login": {
@@ -278,7 +270,9 @@
       "submit": "Create account",
       "submitting": "Creating…",
       "hasAccount": "Already have an account?",
-      "login": "Log in"
+      "login": "Log in",
+      "acceptTerms": "I agree to the <terms>Terms of Service</terms> and the <privacy>Privacy Policy</privacy>, and I am at least 16 years old.",
+      "acceptTermsRequired": "Please accept the terms to create an account."
     },
     "oauth": {
       "or": "or continue with",
@@ -480,7 +474,9 @@
         "PAYMENT_FAILED": "Payment failed",
         "ADDON_INSTALLED": "Add-on installed",
         "ADDON_REMOVED": "Add-on removed",
-        "TASK_RAN": "Scheduled task ran"
+        "TASK_RAN": "Scheduled task ran",
+        "REFUNDED": "Payment refunded",
+        "DISPUTED": "Payment disputed"
       }
     },
     "console": {
@@ -690,6 +686,20 @@
       "invalid_credentials": "Current password is incorrect.",
       "validation": "Please check the highlighted fields.",
       "internal_error": "Something went wrong. Please try again."
+    },
+    "privacy": {
+      "title": "Your data",
+      "exportTitle": "Download your data",
+      "exportDesc": "A copy of everything we hold about you: your account, servers, orders, invoices and support conversations, as a JSON file.",
+      "exportButton": "Download",
+      "deleteTitle": "Delete your account",
+      "deleteDesc": "This removes your account and deletes your servers along with everything on them. Invoices are kept, without your name on them, because accounting law requires it.",
+      "deleteButton": "Delete my account",
+      "deleteWarning": "This cannot be undone. Your servers and their worlds are deleted immediately.",
+      "deleteConfirm": "Delete permanently",
+      "deleteNeedsPassword": "Set a password first, so we can confirm it is really you.",
+      "confirmPassword": "Confirm with your password",
+      "wrongPassword": "That password is not right."
     }
   },
   "admin": {
@@ -740,7 +750,9 @@
         "server_not_found": "Server not found.",
         "internal_error": "Something went wrong. Please try again."
       },
-      "lastError": "Error"
+      "lastError": "Error",
+      "retry": "Retry",
+      "retried": "Provisioning retried."
     },
     "regions": {
       "title": "Regions",
@@ -864,7 +876,8 @@
       "attempts": "Attempts",
       "willCancel": "will cancel",
       "empty": "Nothing here.",
-      "limitNotice": "Showing the 200 most recent entries."
+      "limitNotice": "Showing the 200 most recent entries.",
+      "reportSkipped": "Another billing run is in progress; nothing was done. Try again in a moment."
     },
     "coupons": {
       "add": "New coupon",
@@ -922,17 +935,32 @@
       "deletedUser": "deleted account",
       "empty": "No admin actions recorded yet.",
       "actions": {
-        "pricing.update": "Pricing updated",
-        "game.upsert": "Game saved",
-        "game.delete": "Game deleted",
-        "region.upsert": "Region saved",
-        "region.delete": "Region deleted",
-        "coupon.upsert": "Coupon saved",
-        "coupon.delete": "Coupon deleted",
-        "server.suspend": "Server suspended",
-        "server.unsuspend": "Server reactivated",
-        "user.role": "Role changed",
-        "billing.run": "Billing cycle run"
+        "pricing": {
+          "update": "Pricing updated"
+        },
+        "game": {
+          "upsert": "Game saved",
+          "delete": "Game deleted"
+        },
+        "region": {
+          "upsert": "Region saved",
+          "delete": "Region deleted"
+        },
+        "coupon": {
+          "upsert": "Coupon saved",
+          "delete": "Coupon deleted"
+        },
+        "server": {
+          "suspend": "Server suspended",
+          "unsuspend": "Server reactivated",
+          "delete": "Server deleted"
+        },
+        "user": {
+          "role": "Role changed"
+        },
+        "billing": {
+          "run": "Billing cycle run"
+        }
       }
     },
     "overview": {
@@ -947,6 +975,16 @@
       "mock": "Simulated (mock)",
       "connected": "Connected",
       "unreachable": "Unreachable"
+    },
+    "cron": {
+      "title": "Scheduler",
+      "hint": "Both jobs must be called by your cron. Nothing runs on its own.",
+      "ok": "Healthy",
+      "failing": "Failing",
+      "stale": "Not running",
+      "never": "Never run",
+      "lastRun": "Last run {when} · {duration}ms",
+      "failures": "{count, plural, one {# failure} other {# failures}} in the last 24 hours"
     }
   },
   "errors": {
@@ -1095,5 +1133,12 @@
         "CLOSED": "Closed"
       }
     }
+  },
+  "legal": {
+    "updated": "Last updated {date}",
+    "draftTitle": "Draft — not yet reviewed by a lawyer",
+    "draftBody": "This text was written from how the service actually works, which makes it accurate but not authoritative. Have it reviewed before you start selling, then set LEGAL_REVIEWED=true to remove this notice.",
+    "noCompanyTitle": "Trader details are missing",
+    "noCompanyBody": "Romanian law requires the seller to identify itself on the site. Set the COMPANY_* environment variables so the company name, registration number and contact address appear in the footer."
   }
 }

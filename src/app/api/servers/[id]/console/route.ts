@@ -6,7 +6,7 @@ import { getServerConsole, getServerForUser } from "@/server/services/server-ser
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     const url = new URL(request.url);

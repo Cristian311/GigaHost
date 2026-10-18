@@ -67,6 +67,35 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
         </div>
       </div>
 
+      {/* Never pre-ticked: a box that arrives already checked is not consent,
+          and the GDPR and the consumer directive both say so. */}
+      <div className="flex gap-3">
+        <input
+          id="acceptTerms"
+          name="acceptTerms"
+          type="checkbox"
+          required
+          className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+        />
+        <Label htmlFor="acceptTerms" className="text-sm font-normal leading-snug text-muted-foreground">
+          {t.rich("register.acceptTerms", {
+            terms: (chunks) => (
+              <Link href="/legal/terms" className="text-primary hover:underline">
+                {chunks}
+              </Link>
+            ),
+            privacy: (chunks) => (
+              <Link href="/legal/privacy" className="text-primary hover:underline">
+                {chunks}
+              </Link>
+            ),
+          })}
+        </Label>
+      </div>
+      {fieldError("acceptTerms") ? (
+        <p className="text-xs text-destructive">{t("register.acceptTermsRequired")}</p>
+      ) : null}
+
       {state.error && state.error !== "validation" ? (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {t(`errors.${state.error}` as "errors.email_taken")}

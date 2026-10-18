@@ -5,8 +5,8 @@ import { listAddons } from "@/server/services/addon-service";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function GET(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id } = await params;
     return NextResponse.json(await listAddons(id, user.id));

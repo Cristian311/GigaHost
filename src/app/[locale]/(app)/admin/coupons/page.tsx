@@ -2,10 +2,12 @@ import { setRequestLocale } from "next-intl/server";
 import { CouponsManager } from "@/components/admin/coupons-manager";
 import { listCoupons } from "@/server/services/coupon-service";
 import { getActivePricing } from "@/server/services/pricing-service";
+import { requireAdmin } from "@/server/auth-guard";
 
 export default async function AdminCouponsPage({ params }: PageProps<"/[locale]/admin/coupons">) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await requireAdmin();
   const [coupons, pricing] = await Promise.all([listCoupons(), getActivePricing()]);
 
   return (

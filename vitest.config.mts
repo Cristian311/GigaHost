@@ -29,6 +29,10 @@ export default defineConfig({
             SERVER_PROVIDER: "mock",
             AUTH_SECRET: "test-secret-value-for-integration-tests",
             NEXT_PUBLIC_APP_URL: "https://gigahost.test",
+            // Behind one reverse proxy, as a real deployment is. Without this
+            // the app ignores X-Forwarded-For entirely (see clientIp) and the
+            // per-address limits would all share one bucket.
+            TRUSTED_PROXY_HOPS: "1",
           },
           testTimeout: 20_000,
         },

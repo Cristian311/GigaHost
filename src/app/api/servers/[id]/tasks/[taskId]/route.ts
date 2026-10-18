@@ -7,7 +7,7 @@ import { deleteTask, updateTask } from "@/server/services/task-service";
 type Context = { params: Promise<{ id: string; taskId: string }> };
 
 export async function PUT(request: Request, { params }: Context) {
-  return withApi(async () => {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id, taskId } = await params;
     const input = await parseJson(request, taskSchema);
@@ -15,8 +15,8 @@ export async function PUT(request: Request, { params }: Context) {
   });
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
-  return withApi(async () => {
+export async function DELETE(request: Request, { params }: Context) {
+  return withApi(request, async () => {
     const user = await getApiUser();
     const { id, taskId } = await params;
     await deleteTask(id, user.id, taskId);
